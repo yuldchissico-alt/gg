@@ -1,0 +1,213 @@
+{
+  "funnel_name": "Funil de Vendas - Receitas Sem Glúten",
+  "description": "Funil de vendas para e-book de receitas sem glúten e sem açúcar",
+  "created_at": "2025-01-18T10:00:00Z",
+  "version": "1.0",
+  "settings": {
+    "start_node": "welcome",
+    "theme_color": "#9333ea",
+    "accent_color": "#ec4899",
+    "enable_notifications": true
+  },
+  "nodes": [
+    {
+      "id": "welcome",
+      "type": "message",
+      "title": "Boas-vindas",
+      "content": "Olá! 👋 Eu sou a Chef Prática e vou te mostrar como fazer receitas incríveis sem glúten e sem açúcar! 🎉\n\nVocê está pronto para transformar sua cozinha?",
+      "delay": 0,
+      "buttons": [
+        {
+          "id": "sim",
+          "text": "Sim, quero saber mais! ✨",
+          "next": "beneficios"
+        },
+        {
+          "id": "duvidas",
+          "text": "Tenho dúvidas...",
+          "next": "faq"
+        }
+      ]
+    },
+    {
+      "id": "beneficios",
+      "type": "message",
+      "title": "Benefícios",
+      "content": "Que ótimo! 🌟\n\nCom o nosso e-book você terá acesso a:\n✅ Mais de 469 receitas deliciosas\n✅ Zero açúcar e zero glúten\n✅ Receitas práticas (até 20 min)\n✅ 50 receitas exclusivas para Airfryer\n\nTudo testado e aprovado! 😋",
+      "delay": 2,
+      "buttons": [
+        {
+          "id": "produto",
+          "text": "Quero ver o e-book! 📖",
+          "next": "produto"
+        },
+        {
+          "id": "duvidas",
+          "text": "Ainda tenho dúvidas",
+          "next": "faq"
+        }
+      ]
+    },
+    {
+      "id": "produto",
+      "type": "product",
+      "title": "E-book Receitas Sem Glúten",
+      "content": "🎁 OFERTA ESPECIAL!\n\nE-book Completo: Receitas Zero Glúten\n\n📚 469+ Receitas testadas\n⚡ Airfryer, forno e fogão\n💰 Economia garantida\n🍰 Bolos, pães, doces e salgados\n\nDe R$ 97,00 por apenas:",
+      "price": "R$ 47,00",
+      "image_url": "https://example.com/ebook-cover.jpg",
+      "cta": {
+        "text": "Garantir meu E-book agora! 🔥",
+        "url": "https://pay.hotmart.com/exemplo"
+      },
+      "buttons": [
+        {
+          "id": "duvidas",
+          "text": "Tenho mais perguntas",
+          "next": "faq"
+        }
+      ]
+    },
+    {
+      "id": "faq",
+      "type": "message",
+      "title": "Perguntas Frequentes",
+      "content": "Entendo suas dúvidas! Escolha uma pergunta:",
+      "delay": 0,
+      "buttons": [
+        {
+          "id": "q1",
+          "text": "É difícil fazer?",
+          "next": "resposta1"
+        },
+        {
+          "id": "q2",
+          "text": "É caro?",
+          "next": "resposta2"
+        },
+        {
+          "id": "q3",
+          "text": "Por que comprar?",
+          "next": "resposta3"
+        },
+        {
+          "id": "q4",
+          "text": "Sou diabético, posso?",
+          "next": "resposta4"
+        },
+        {
+          "id": "voltar",
+          "text": "Voltar ao início",
+          "next": "welcome"
+        }
+      ]
+    },
+    {
+      "id": "resposta1",
+      "type": "message",
+      "title": "Resposta - Dificuldade",
+      "content": "De jeito nenhum! A palavra de ordem aqui é praticidade. A maioria das receitas, especialmente as de Airfryer, foram feitas para ficarem prontas em no máximo 20 minutos. São passos simples, com ingredientes fáceis de achar. Foram criadas para a vida real! 😉",
+      "delay": 1,
+      "buttons": [
+        {
+          "id": "produto",
+          "text": "Quero garantir meu e-book!",
+          "next": "produto"
+        },
+        {
+          "id": "mais",
+          "text": "Outras dúvidas",
+          "next": "faq"
+        }
+      ]
+    },
+    {
+      "id": "resposta2",
+      "type": "message",
+      "title": "Resposta - Preço",
+      "content": "Ótima pergunta! Na verdade, você vai economizar. Pense no preço dos produtos prontos sem glúten e sem açúcar no mercado. Com essas receitas, você usa ingredientes mais naturais e faz em casa por uma fração do valor. Esse e-book se paga muito rápido! 💰",
+      "delay": 1,
+      "buttons": [
+        {
+          "id": "produto",
+          "text": "Quero garantir meu e-book!",
+          "next": "produto"
+        },
+        {
+          "id": "mais",
+          "text": "Outras dúvidas",
+          "next": "faq"
+        }
+      ]
+    },
+    {
+      "id": "resposta3",
+      "type": "message",
+      "title": "Resposta - Por que comprar",
+      "content": "Eu entendo, mas a internet pode ser uma armadilha. Lá você acha receitas soltas, muitas que nunca foram testadas e que podem dar errado, te fazendo perder tempo e ingredientes. Aqui você tem um método completo, com mais de 469 receitas validadas, organizadas e que se complementam, garantindo que vai dar certo e ficar uma delícia! É um atalho para o sucesso. ✨",
+      "delay": 1,
+      "buttons": [
+        {
+          "id": "produto",
+          "text": "Quero garantir meu e-book!",
+          "next": "produto"
+        },
+        {
+          "id": "mais",
+          "text": "Outras dúvidas",
+          "next": "faq"
+        }
+      ]
+    },
+    {
+      "id": "resposta4",
+      "type": "message",
+      "title": "Resposta - Diabéticos",
+      "content": "Com certeza! Essa é uma das maiores preocupações e o motivo principal deste material existir. Todas as receitas são zero açúcar, usando adoçantes naturais e seguros. Elas foram pensadas para quem precisa controlar a glicemia mas não quer abrir mão do prazer de comer. ❤️",
+      "delay": 1,
+      "buttons": [
+        {
+          "id": "produto",
+          "text": "Quero garantir meu e-book!",
+          "next": "produto"
+        },
+        {
+          "id": "mais",
+          "text": "Outras dúvidas",
+          "next": "faq"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "welcome",
+      "to": "beneficios",
+      "via": "sim"
+    },
+    {
+      "from": "welcome",
+      "to": "faq",
+      "via": "duvidas"
+    },
+    {
+      "from": "beneficios",
+      "to": "produto",
+      "via": "produto"
+    },
+    {
+      "from": "beneficios",
+      "to": "faq",
+      "via": "duvidas"
+    },
+    {
+      "from": "produto",
+      "to": "faq",
+      "via": "duvidas"
+    }
+  ],
+  "meta": {
+    "tags": ["receitas", "sem glúten", "vendas", "e-book"],
+    "author": "Chef Prática",
+    "language": "pt-BR"
+  }
+}

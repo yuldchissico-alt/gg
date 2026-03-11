@@ -1,0 +1,7 @@
+node_modules
+auth_info
+.next
+dist
+dev.out.log
+dev.err.log
+

@@ -1,0 +1,55 @@
+[
+  {
+    "name": "Funil de Boas-vindas",
+    "triggerPhrases": ["oi", "olá", "ola", "começar", "iniciar"],
+    "status": "draft",
+    "flowData": {
+      "nodes": [
+        {
+          "id": "1",
+          "type": "trigger",
+          "position": { "x": 250, "y": 50 },
+          "data": {
+            "label": "Gatilho Inicial",
+            "triggerType": "keyword",
+            "keywords": ["oi", "olá", "ola", "começar", "iniciar"]
+          }
+        },
+        {
+          "id": "2",
+          "type": "message",
+          "position": { "x": 250, "y": 150 },
+          "data": {
+            "label": "Mensagem de Boas-vindas",
+            "content": "Olá! 👋 Seja bem-vindo ao nosso atendimento automatizado!\n\nEstou aqui para ajudá-lo. Como posso te auxiliar hoje?",
+            "delay": 0
+          }
+        },
+        {
+          "id": "3",
+          "type": "message",
+          "position": { "x": 250, "y": 250 },
+          "data": {
+            "label": "Opções de Atendimento",
+            "content": "Escolha uma das opções abaixo:\n\n1️⃣ Produtos e Serviços\n2️⃣ Suporte Técnico\n3️⃣ Falar com Atendente\n\nDigite o número da opção desejada.",
+            "delay": 2
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "e1-2",
+          "source": "1",
+          "target": "2",
+          "type": "default"
+        },
+        {
+          "id": "e2-3",
+          "source": "2",
+          "target": "3",
+          "type": "default"
+        }
+      ]
+    }
+  }
+]

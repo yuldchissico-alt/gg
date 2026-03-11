@@ -1,0 +1,17 @@
+Perfeito 🔥 Aqui está tudo junto — as características completas de leitura do funil ao importar um JSON, escritas em texto corrido e organizadas para fácil cópia e uso técnico 👇
+
+O sistema deve ler do JSON as seguintes características de um funil de vendas: o nome do funil (funnel_name), que identifica o projeto; a descrição (description), que explica o objetivo do funil; a data de criação (created_at), usada para histórico e ordenação; a versão (version), que garante compatibilidade entre diferentes versões; e as configurações gerais (settings), que incluem o nó inicial do fluxo (start_node), a cor principal (theme_color), a cor de destaque (accent_color), a fonte usada (font) e a opção de salvamento automático (auto_save).
+
+O JSON deve conter também a lista de nós (nodes), onde cada nó representa uma etapa do funil. Cada nó possui um identificador único (id), um tipo (type), que pode ser mensagem, produto, formulário, condicional, transferência, espera ou encerramento, um título (title) para exibição no editor e um conteúdo (content), que é o texto principal enviado ao usuário. Pode conter também um tempo de atraso (delay), que define em quantos segundos a próxima ação será executada automaticamente, e um objeto de mídia (media), que inclui o tipo da mídia (type: imagem, vídeo, áudio, documento) e o link correspondente (url).
+
+Cada nó pode ter uma lista de botões (buttons), e cada botão deve conter um identificador (id), o texto exibido (text) e o destino (next), que é o ID do próximo nó ao clicar. Também pode existir um botão de chamada para ação (cta), com um texto (text) e um link (url) que leva para um checkout, site ou formulário externo. Caso o nó represente um produto, deve conter o campo de preço (price). Se o nó for do tipo transferência, deve conter o nome do atendente (agent_name) e o método de transferência (transfer_method), que pode ser WhatsApp, Telegram, e-mail, etc. O campo next também pode existir sozinho, para definir o próximo nó automaticamente sem depender de clique, e o campo end indica se o fluxo termina naquele ponto.
+
+As conexões entre os nós (connections) definem como os blocos se ligam. Cada conexão deve ter um campo de origem (from), um destino (to) e opcionalmente um identificador de botão (via), que mostra qual ação leva de um nó a outro.
+
+Os tipos de nó aceitos são: mensagem (envio de texto e botões), produto (exibe imagem, preço e botão de compra), formulário (coleta informações do usuário, como nome, e-mail e telefone), condicional (define caminhos diferentes com base em respostas ou tags), transferência (envia o cliente para um atendente humano), espera (pausa o fluxo por um tempo antes de continuar) e encerrar (fecha o fluxo com uma mensagem final).
+
+O JSON pode conter metadados (meta), como tags que classificam o funil (por exemplo: vendas, captura, promoção), o nome do autor (autor) e o idioma principal do conteúdo (idioma).
+
+Durante a leitura, o sistema deve validar toda a estrutura, garantindo que cada nó e botão tenha um ID único, que todos os nós referenciados em “next” e “connections” existam, que os tipos de dados estejam corretos (strings, números, booleanos) e que o “start_node” esteja presente para definir onde o fluxo começa.
+
+Em resumo, o leitor deve conseguir interpretar o nome, descrição, configurações gerais, lista de nós com todos os seus elementos internos, conexões entre nós, metadados e regras de validação, reconstruindo automaticamente o funil completo dentro da interface do sistema.
