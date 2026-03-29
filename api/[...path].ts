@@ -10,9 +10,17 @@ async function getApp(): Promise<Express> {
 
   appPromise = (async () => {
     const app = express();
+    app.set("etag", false);
 
     app.use(express.json({ limit: "50mb" }));
     app.use(express.urlencoded({ limit: "50mb", extended: false }));
+
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.path.startsWith("/api")) {
+        res.setHeader("Cache-Control", "no-store");
+      }
+      next();
+    });
 
     // Minimal API logging for Vercel
     app.use((req: Request, res: Response, next: NextFunction) => {
@@ -46,4 +54,3 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const app = await getApp();
   return app(req as any, res as any);
 }
-

@@ -25,6 +25,7 @@ export async function apiRequest(
 ): Promise<Response> {
   const res = await fetch(url, {
     method,
+    cache: "no-store",
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
@@ -46,6 +47,7 @@ export const getQueryFn: <T>(options: {
     try {
       const res = await fetch(url, {
         credentials: "include",
+        cache: "no-store",
       });
 
       if (unauthorizedBehavior === "returnNull" && res.status === 401) {
