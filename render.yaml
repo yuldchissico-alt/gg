@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: zapfast
+    runtime: node
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+    startCommand: pnpm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        sync: false
+    disk:
+      name: whatsapp_data
+      mountPath: /opt/render/project/src/auth_info
+      sizeGB: 1
