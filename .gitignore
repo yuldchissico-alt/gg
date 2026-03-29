@@ -8,4 +8,5 @@ auth_info
 .vercel
 *.log
 .env
-.env.*
+.env.local
+.env.*.local
