@@ -318,21 +318,21 @@ export default function WhatsAppConnectionModal({ open, onOpenChange }: WhatsApp
 
         <div className="space-y-4">
           {!showQR ? (
-            <div className="space-y-3 p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-300 dark:from-purple-950 dark:to-purple-900 dark:border-purple-700">
+            <div className="space-y-3 p-4 bg-card rounded-xl border border-border">
               <div>
-                <h3 className="text-base font-bold text-purple-700 dark:text-purple-300">Pronto para conectar?</h3>
-                <p className="text-xs text-gray-600 dark:text-gray-300">Clique abaixo para gerar o QR Code</p>
+                <h3 className="text-base font-bold text-foreground">Pronto para conectar?</h3>
+                <p className="text-xs text-muted-foreground">Clique abaixo para gerar o QR Code</p>
               </div>
               
               {generateQRMutation.isPending ? (
                 <div className="flex flex-col items-center space-y-2">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                  <p className="text-sm font-medium text-blue-700 dark:text-blue-400">Gerando QR Code...</p>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-foreground"></div>
+                  <p className="text-sm font-medium text-foreground">Gerando QR Code...</p>
                 </div>
               ) : (
                 <Button
                   onClick={() => generateQRMutation.mutate()}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 text-sm"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-2 text-sm"
                   data-testid="button-generate-qr"
                 >
                   <QrCode className="h-4 w-4 mr-2" />

@@ -80,7 +80,7 @@ export default function FunnelNode({ data, selected }: NodeProps<FunnelNodeData>
         <Handle
           type="target"
           position={Position.Top}
-          className="!w-4 !h-4 !bg-purple-500 !border-2 !border-purple-300 hover:!bg-purple-400 transition-colors"
+          className="!w-4 !h-4 !bg-primary !border-2 !border-foreground hover:!bg-primary/80 transition-colors"
           data-testid="handle-input"
         />
       )}
@@ -257,7 +257,7 @@ export default function FunnelNode({ data, selected }: NodeProps<FunnelNodeData>
             <Handle
               type="source"
               position={Position.Bottom}
-              className="!w-4 !h-4 !bg-purple-500 !border-2 !border-purple-300 hover:!bg-purple-400 transition-colors"
+              className="!w-4 !h-4 !bg-primary !border-2 !border-foreground hover:!bg-primary/80 transition-colors"
               data-testid="handle-output"
             />
           </>

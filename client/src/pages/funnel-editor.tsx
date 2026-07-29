@@ -411,7 +411,7 @@ export default function FunnelEditor() {
                 size="sm"
                 onClick={handleSaveFunnel}
                 disabled={saveFunnelMutation.isPending}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-lg hover:shadow-purple-500/50 transition-all"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-lg transition-all"
                 data-testid="button-save-funnel"
               >
                 <Save className={`h-4 w-4 sm:mr-2 ${saveFunnelMutation.isPending ? 'animate-spin' : ''}`} />
@@ -429,63 +429,63 @@ export default function FunnelEditor() {
             <div className="space-y-8">
               {/* Message Types */}
               <div>
-                <h3 className="hidden sm:block text-xs font-bold text-purple-400 uppercase tracking-widest mb-4 pl-1">
+                <h3 className="hidden sm:block text-xs font-bold text-foreground uppercase tracking-widest mb-4 pl-1">
                   Mensagens
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <div 
-                    className="p-3 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-purple-900/30 active:to-purple-800/20 transition-all duration-200 border border-[#404040] hover:border-purple-500/50 active:cursor-grabbing overflow-hidden flex flex-col items-center shadow-md hover:shadow-lg hover:shadow-purple-500/10" 
+                    className="p-3 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-gray-800 transition-all duration-200 border border-[#404040] hover:border-gray-500 active:cursor-grabbing overflow-hidden flex flex-col items-center shadow-md hover:shadow-lg" 
                     data-testid="tool-text"
                     draggable
                     onDragStart={(e) => onDragStart(e, 'message')}
                   >
-                    <MessageSquare className="h-6 w-6 text-purple-400 mb-1.5 flex-shrink-0 drop-shadow-lg" />
+                    <MessageSquare className="h-6 w-6 text-foreground mb-1.5 flex-shrink-0 drop-shadow-lg" />
                     <p className="text-xs font-semibold text-gray-200 text-center truncate w-full">Texto</p>
                   </div>
                   <div 
-                    className="p-3 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-purple-900/30 active:to-purple-800/20 transition-all duration-200 border border-[#404040] hover:border-purple-500/50 active:cursor-grabbing overflow-hidden flex flex-col items-center shadow-md hover:shadow-lg hover:shadow-purple-500/10" 
+                    className="p-3 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-gray-800 transition-all duration-200 border border-[#404040] hover:border-gray-500 active:cursor-grabbing overflow-hidden flex flex-col items-center shadow-md hover:shadow-lg" 
                     data-testid="tool-image"
                     draggable
                     onDragStart={(e) => onDragStart(e, 'image')}
                   >
-                    <Image className="h-6 w-6 text-purple-400 mb-1.5 flex-shrink-0 drop-shadow-lg" />
+                    <Image className="h-6 w-6 text-foreground mb-1.5 flex-shrink-0 drop-shadow-lg" />
                     <p className="text-xs font-semibold text-gray-200 text-center truncate w-full">Imagem</p>
                   </div>
                   <div 
-                    className="p-3 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-purple-900/30 active:to-purple-800/20 transition-all duration-200 border border-[#404040] hover:border-purple-500/50 active:cursor-grabbing overflow-hidden flex flex-col items-center shadow-md hover:shadow-lg hover:shadow-purple-500/10" 
+                    className="p-3 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-gray-800 transition-all duration-200 border border-[#404040] hover:border-gray-500 active:cursor-grabbing overflow-hidden flex flex-col items-center shadow-md hover:shadow-lg" 
                     data-testid="tool-video"
                     draggable
                     onDragStart={(e) => onDragStart(e, 'video')}
                   >
-                    <Video className="h-6 w-6 text-purple-400 mb-1.5 flex-shrink-0 drop-shadow-lg" />
+                    <Video className="h-6 w-6 text-foreground mb-1.5 flex-shrink-0 drop-shadow-lg" />
                     <p className="text-xs font-semibold text-gray-200 text-center truncate w-full">Vídeo</p>
                   </div>
                   <div 
-                    className="p-3 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-purple-900/30 active:to-purple-800/20 transition-all duration-200 border border-[#404040] hover:border-purple-500/50 active:cursor-grabbing overflow-hidden flex flex-col items-center shadow-md hover:shadow-lg hover:shadow-purple-500/10" 
+                    className="p-3 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-gray-800 transition-all duration-200 border border-[#404040] hover:border-gray-500 active:cursor-grabbing overflow-hidden flex flex-col items-center shadow-md hover:shadow-lg" 
                     data-testid="tool-audio"
                     draggable
                     onDragStart={(e) => onDragStart(e, 'audio')}
                   >
-                    <Mic className="h-6 w-6 text-purple-400 mb-1.5 flex-shrink-0 drop-shadow-lg" />
+                    <Mic className="h-6 w-6 text-foreground mb-1.5 flex-shrink-0 drop-shadow-lg" />
                     <p className="text-xs font-semibold text-gray-200 text-center truncate w-full">Audio</p>
                   </div>
                   <div 
-                    className="p-3 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-purple-900/30 active:to-purple-800/20 transition-all duration-200 border border-[#404040] hover:border-purple-500/50 active:cursor-grabbing overflow-hidden flex flex-col items-center shadow-md hover:shadow-lg hover:shadow-purple-500/10" 
+                    className="p-3 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-gray-800 transition-all duration-200 border border-[#404040] hover:border-gray-500 active:cursor-grabbing overflow-hidden flex flex-col items-center shadow-md hover:shadow-lg" 
                     data-testid="tool-location"
                     draggable
                     onDragStart={(e) => onDragStart(e, 'location')}
                   >
-                    <MapPin className="h-6 w-6 text-purple-400 mb-1.5 flex-shrink-0 drop-shadow-lg" />
+                    <MapPin className="h-6 w-6 text-foreground mb-1.5 flex-shrink-0 drop-shadow-lg" />
                     <p className="text-xs font-semibold text-gray-200 text-center truncate w-full">Local</p>
                   </div>
                   
                   <div 
-                    className="p-3 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-purple-900/30 active:to-purple-800/20 transition-all duration-200 border border-[#404040] hover:border-purple-500/50 active:cursor-grabbing overflow-hidden flex flex-col items-center shadow-md hover:shadow-lg hover:shadow-purple-500/10" 
+                    className="p-3 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-gray-800 transition-all duration-200 border border-[#404040] hover:border-gray-500 active:cursor-grabbing overflow-hidden flex flex-col items-center shadow-md hover:shadow-lg" 
                     data-testid="tool-document"
                     draggable
                     onDragStart={(e) => onDragStart(e, 'document')}
                   >
-                    <FileText className="h-6 w-6 text-purple-400 mb-1.5 flex-shrink-0 drop-shadow-lg" />
+                    <FileText className="h-6 w-6 text-foreground mb-1.5 flex-shrink-0 drop-shadow-lg" />
                     <p className="text-xs font-semibold text-gray-200 text-center truncate w-full">Doc</p>
                   </div>
                 </div>
@@ -493,51 +493,51 @@ export default function FunnelEditor() {
               
               {/* Logic Elements */}
               <div>
-                <h3 className="hidden sm:block text-xs font-bold text-purple-400 uppercase tracking-widest mb-4 pl-1">Lógica</h3>
+                <h3 className="hidden sm:block text-xs font-bold text-foreground uppercase tracking-widest mb-4 pl-1">Lógica</h3>
                 <div className="space-y-2.5">
                   <div 
-                    className="p-3.5 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-purple-900/30 active:to-purple-800/20 transition-all duration-200 flex items-center border border-[#404040] hover:border-purple-500/50 active:cursor-grabbing shadow-md hover:shadow-lg hover:shadow-purple-500/10" 
+                    className="p-3.5 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-gray-800 transition-all duration-200 flex items-center border border-[#404040] hover:border-gray-500 active:cursor-grabbing shadow-md hover:shadow-lg" 
                     data-testid="tool-condition"
                     draggable
                     onDragStart={(e) => onDragStart(e, 'condition')}
                   >
-                    <GitBranch className="h-4 w-4 text-purple-400 mr-2.5 flex-shrink-0 drop-shadow-lg" />
+                    <GitBranch className="h-4 w-4 text-foreground mr-2.5 flex-shrink-0 drop-shadow-lg" />
                     <span className="text-sm font-semibold text-gray-200 hidden md:inline">Condição</span>
                   </div>
                   <div 
-                    className="p-3.5 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-purple-900/30 active:to-purple-800/20 transition-all duration-200 flex items-center border border-[#404040] hover:border-purple-500/50 active:cursor-grabbing shadow-md hover:shadow-lg hover:shadow-purple-500/10" 
+                    className="p-3.5 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-gray-800 transition-all duration-200 flex items-center border border-[#404040] hover:border-gray-500 active:cursor-grabbing shadow-md hover:shadow-lg" 
                     data-testid="tool-delay"
                     draggable
                     onDragStart={(e) => onDragStart(e, 'delay')}
                   >
-                    <Clock className="h-4 w-4 text-purple-400 mr-2.5 flex-shrink-0 drop-shadow-lg" />
+                    <Clock className="h-4 w-4 text-foreground mr-2.5 flex-shrink-0 drop-shadow-lg" />
                     <span className="text-sm font-semibold text-gray-200 hidden md:inline">Esperar</span>
                   </div>
                   <div 
-                    className="p-3.5 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-purple-900/30 active:to-purple-800/20 transition-all duration-200 flex items-center border border-[#404040] hover:border-purple-500/50 active:cursor-grabbing shadow-md hover:shadow-lg hover:shadow-purple-500/10" 
+                    className="p-3.5 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-gray-800 transition-all duration-200 flex items-center border border-[#404040] hover:border-gray-500 active:cursor-grabbing shadow-md hover:shadow-lg" 
                     data-testid="tool-question"
                     draggable
                     onDragStart={(e) => onDragStart(e, 'question')}
                   >
-                    <HelpCircle className="h-4 w-4 text-purple-400 mr-2.5 flex-shrink-0 drop-shadow-lg" />
+                    <HelpCircle className="h-4 w-4 text-foreground mr-2.5 flex-shrink-0 drop-shadow-lg" />
                     <span className="text-sm font-semibold text-gray-200 hidden md:inline">Pergunta</span>
                   </div>
                   <div 
-                    className="p-3.5 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-purple-900/30 active:to-purple-800/20 transition-all duration-200 flex items-center border border-[#404040] hover:border-purple-500/50 active:cursor-grabbing shadow-md hover:shadow-lg hover:shadow-purple-500/10" 
+                    className="p-3.5 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-gray-800 transition-all duration-200 flex items-center border border-[#404040] hover:border-gray-500 active:cursor-grabbing shadow-md hover:shadow-lg" 
                     data-testid="tool-tag"
                     draggable
                     onDragStart={(e) => onDragStart(e, 'tag')}
                   >
-                    <Tag className="h-4 w-4 text-purple-400 mr-2.5 flex-shrink-0 drop-shadow-lg" />
+                    <Tag className="h-4 w-4 text-foreground mr-2.5 flex-shrink-0 drop-shadow-lg" />
                     <span className="text-sm font-semibold text-gray-200 hidden md:inline">Tag</span>
                   </div>
                   <div 
-                    className="p-3.5 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-purple-900/30 active:to-purple-800/20 transition-all duration-200 flex items-center border border-[#404040] hover:border-purple-500/50 active:cursor-grabbing shadow-md hover:shadow-lg hover:shadow-purple-500/10" 
+                    className="p-3.5 sm:p-3 lg:p-3.5 bg-gradient-to-br from-[#2d2d2d] to-[#252525] rounded-lg cursor-grab hover:from-[#3a3a3a] hover:to-[#2d2d2d] active:from-gray-800 transition-all duration-200 flex items-center border border-[#404040] hover:border-gray-500 active:cursor-grabbing shadow-md hover:shadow-lg" 
                     data-testid="tool-verify"
                     draggable
                     onDragStart={(e) => onDragStart(e, 'verify')}
                   >
-                    <CheckCircle className="h-4 w-4 text-purple-400 mr-2.5 flex-shrink-0 drop-shadow-lg" />
+                    <CheckCircle className="h-4 w-4 text-foreground mr-2.5 flex-shrink-0 drop-shadow-lg" />
                     <span className="text-sm font-semibold text-gray-200 hidden md:inline">Verificar</span>
                   </div>
                 </div>
@@ -619,7 +619,7 @@ export default function FunnelEditor() {
                         '*/*'
                       }
                       onChange={handleFileUpload}
-                      className="mt-2 bg-[#1a1a1a] border-gray-700 text-white file:bg-purple-600 file:text-white file:border-0 file:px-4 file:py-2 file:rounded file:mr-4"
+                      className="mt-2 bg-[#1a1a1a] border-gray-700 text-white file:bg-primary file:text-primary-foreground file:border-0 file:px-4 file:py-2 file:rounded file:mr-4"
                       data-testid="input-media-file"
                     />
                   </div>
@@ -636,7 +636,7 @@ export default function FunnelEditor() {
                         )}
                         {selectedNode.data.nodeType === 'video' && (
                           <div className="flex items-center gap-3 p-3 bg-[#2a2a2a] rounded w-full">
-                            <Video className="h-10 w-10 text-purple-500 flex-shrink-0" />
+                            <Video className="h-10 w-10 text-foreground flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm text-gray-300">Vídeo anexado</p>
                               <p className="text-xs text-gray-500 truncate">
@@ -650,7 +650,7 @@ export default function FunnelEditor() {
                         {selectedNode.data.nodeType === 'audio' && (
                           <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-3 p-2 bg-[#2a2a2a] rounded">
-                              <Mic className="h-8 w-8 text-purple-500 flex-shrink-0" />
+                              <Mic className="h-8 w-8 text-foreground flex-shrink-0" />
                               <p className="text-sm text-gray-300">Áudio anexado</p>
                             </div>
                             <audio 
@@ -664,7 +664,7 @@ export default function FunnelEditor() {
                         )}
                         {selectedNode.data.nodeType === 'document' && (
                           <div className="flex items-center gap-3 p-3 bg-[#2a2a2a] rounded">
-                            <FileText className="h-10 w-10 text-purple-500 flex-shrink-0" />
+                            <FileText className="h-10 w-10 text-foreground flex-shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm text-gray-300">Documento anexado</p>
                               <p className="text-xs text-gray-500 truncate mb-1">
@@ -680,7 +680,7 @@ export default function FunnelEditor() {
                                 <Button
                                   variant="link"
                                   size="sm"
-                                  className="text-xs text-purple-400 hover:text-purple-300 p-0 h-auto"
+                                  className="text-xs text-foreground hover:underline p-0 h-auto"
                                   onClick={() => {
                                     const mediaUrl = selectedNode.data.mediaUrl;
                                     if (!mediaUrl) return;

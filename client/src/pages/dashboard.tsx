@@ -233,7 +233,7 @@ export default function Dashboard() {
         <header className="bg-card border-b border-border pl-14 pr-4 lg:pl-6 lg:pr-6 py-3 sm:py-4 lg:py-5 pt-[16px] pb-[16px]">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
             <div className="flex-1">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-white" data-testid="text-dashboard-title">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-foreground" data-testid="text-dashboard-title">
                 Bem-vindo, <span className="text-primary">{displayName}</span>
               </h1>
               <p className="text-sm sm:text-base lg:text-lg text-muted-foreground mt-1">Aqui estão algumas métricas da sua operação:</p>
@@ -350,10 +350,10 @@ export default function Dashboard() {
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis 
                         dataKey="name" 
-                        tick={{ fill: '#ffffff', fontSize: 8 }}
+                        tick={{ fill: '#333333', fontSize: 8 }}
                       />
                       <YAxis 
-                        tick={{ fill: '#ffffff', fontSize: 8 }}
+                        tick={{ fill: '#333333', fontSize: 8 }}
                       />
                       <Tooltip 
                         contentStyle={{ 
@@ -366,37 +366,37 @@ export default function Dashboard() {
                       <Line 
                         type="monotone" 
                         dataKey="mensagens" 
-                        stroke="#8b5cf6" 
+                        stroke="#000000" 
                         strokeWidth={2}
                         name="Interações"
-                        dot={{ r: 3, fill: '#8b5cf6' }}
+                        dot={{ r: 3, fill: '#000000' }}
                         activeDot={{ r: 5 }}
                       />
                       <Line 
                         type="monotone" 
                         dataKey="contatos" 
-                        stroke="#a78bfa" 
+                        stroke="#4b5563" 
                         strokeWidth={2}
                         name="Novos Contatos"
-                        dot={{ r: 3, fill: '#a78bfa' }}
+                        dot={{ r: 3, fill: '#4b5563' }}
                         activeDot={{ r: 5 }}
                       />
                       <Line 
                         type="monotone" 
                         dataKey="funisAtivos" 
-                        stroke="#c084fc" 
+                        stroke="#9ca3af" 
                         strokeWidth={2}
                         name="Funis ativos"
-                        dot={{ r: 3, fill: '#c084fc' }}
+                        dot={{ r: 3, fill: '#9ca3af' }}
                         activeDot={{ r: 5 }}
                       />
                       <Line 
                         type="monotone" 
                         dataKey="taxaFinalizacao" 
-                        stroke="#d8b4fe" 
+                        stroke="#d1d5db" 
                         strokeWidth={2}
                         name="Taxa de Sucesso"
-                        dot={{ r: 3, fill: '#d8b4fe' }}
+                        dot={{ r: 3, fill: '#d1d5db' }}
                         activeDot={{ r: 5 }}
                       />
                     </LineChart>
@@ -405,19 +405,19 @@ export default function Dashboard() {
                 
                 <div className="flex flex-row items-center justify-between mt-4 px-1 w-full overflow-hidden">
                   <div className="flex items-center gap-1 shrink-0">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#8b5cf6]"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#000000]"></div>
                     <span className="text-[7.5px] sm:text-[9px] text-muted-foreground whitespace-nowrap">Interações</span>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#a78bfa]"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#4b5563]"></div>
                     <span className="text-[7.5px] sm:text-[9px] text-muted-foreground whitespace-nowrap">Novos Contatos</span>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#c084fc]"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#9ca3af]"></div>
                     <span className="text-[7.5px] sm:text-[9px] text-muted-foreground whitespace-nowrap">Funis ativos</span>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <div className="h-1.5 w-1.5 rounded-full bg-[#d8b4fe]"></div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-[#d1d5db]"></div>
                     <span className="text-[7.5px] sm:text-[9px] text-muted-foreground whitespace-nowrap">Sucesso %</span>
                   </div>
                 </div>

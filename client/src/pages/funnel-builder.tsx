@@ -345,7 +345,7 @@ export default function FunnelBuilder() {
               <Button 
                 size="sm"
                 onClick={() => setIsCreateDialogOpen(true)}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold flex-1 sm:flex-initial pl-[12px] pr-[12px]"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold flex-1 sm:flex-initial pl-[12px] pr-[12px]"
                 data-testid="button-create-funnel"
               >
                 <Plus className="h-4 w-4 sm:mr-2" />
@@ -422,7 +422,7 @@ export default function FunnelBuilder() {
                         </Button>
                         <Button
                           size="icon"
-                          className="rounded-full w-10 h-10 bg-purple-600 hover:bg-purple-700"
+                          className="rounded-full w-10 h-10 bg-primary hover:bg-primary/90 text-primary-foreground"
                           onClick={() => setLocation(`/funnel-editor/${funnel.id}`)}
                           data-testid={`button-edit-funnel-${funnel.id}`}
                         >
@@ -441,7 +441,7 @@ export default function FunnelBuilder() {
                   </p>
                   <Button 
                     onClick={() => setIsCreateDialogOpen(true)}
-                    className="bg-purple-600 hover:bg-purple-700 text-white"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground"
                     data-testid="button-create-first-funnel"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -484,7 +484,7 @@ export default function FunnelBuilder() {
             <Button
               onClick={handleCreateFunnel}
               disabled={createFunnelMutation.isPending}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
               data-testid="button-confirm-create"
             >
               {createFunnelMutation.isPending ? "Criando..." : "Criar Funil"}
@@ -542,7 +542,7 @@ export default function FunnelBuilder() {
             <Button
               onClick={handleExportSelectedFunnels}
               disabled={selectedFunnelsForExport.length === 0}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
               data-testid="button-confirm-export"
             >
               <Download className="h-4 w-4 mr-2" />

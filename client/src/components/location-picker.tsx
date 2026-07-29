@@ -114,7 +114,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
             size="icon"
             onClick={searchAddress}
             disabled={isSearching}
-            className="bg-purple-600 hover:bg-purple-700"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
             data-testid="button-search-location"
           >
             {isSearching ? (
@@ -133,7 +133,7 @@ export default function LocationPicker({ value, onChange }: LocationPickerProps)
             <button
               key={index}
               onClick={() => selectLocation(result)}
-              className="w-full text-left p-2 rounded hover:bg-purple-600/20 transition-colors flex items-start gap-2"
+              className="w-full text-left p-2 rounded hover:bg-muted transition-colors flex items-start gap-2"
               data-testid={`location-result-${index}`}
             >
               <MapPin className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0" />

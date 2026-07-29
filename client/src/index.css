@@ -4,82 +4,82 @@
 @tailwind utilities;
 
 :root {
-  --background: hsl(240, 40%, 6%);
-  --foreground: hsl(0, 0%, 98%);
-  --card: hsla(240, 35%, 12%, 0.7);
-  --card-foreground: hsl(0, 0%, 98%);
-  --popover: hsla(240, 35%, 12%, 0.95);
-  --popover-foreground: hsl(0, 0%, 98%);
-  --primary: hsl(262, 83%, 58%);
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(0, 0%, 10%);
+  --card: hsla(0, 0%, 96%, 0.9);
+  --card-foreground: hsl(0, 0%, 10%);
+  --popover: hsla(0, 0%, 98%, 0.95);
+  --popover-foreground: hsl(0, 0%, 10%);
+  --primary: hsl(0, 0%, 10%);
   --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(262, 83%, 58%);
+  --secondary: hsl(0, 0%, 15%);
   --secondary-foreground: hsl(0, 0%, 100%);
-  --muted: hsl(240, 25%, 16%);
-  --muted-foreground: hsl(240, 15%, 65%);
-  --accent: hsl(270, 75%, 60%);
+  --muted: hsl(0, 0%, 93%);
+  --muted-foreground: hsl(0, 0%, 40%);
+  --accent: hsl(0, 0%, 20%);
   --accent-foreground: hsl(0, 0%, 100%);
   --destructive: hsl(0, 72%, 51%);
   --destructive-foreground: hsl(0, 0%, 100%);
-  --border: hsla(240, 30%, 25%, 0.5);
-  --input: hsla(240, 30%, 18%, 0.8);
-  --ring: hsl(262, 83%, 58%);
-  --chart-1: hsl(270, 85%, 65%);
-  --chart-2: hsl(280, 75%, 60%);
-  --chart-3: hsl(290, 85%, 55%);
-  --chart-4: hsl(260, 75%, 50%);
-  --chart-5: hsl(300, 70%, 55%);
-  --sidebar: hsla(240, 35%, 10%, 0.8);
-  --sidebar-foreground: hsl(0, 0%, 98%);
-  --sidebar-primary: hsl(262, 83%, 58%);
+  --border: hsla(0, 0%, 80%, 0.5);
+  --input: hsla(0, 0%, 90%, 0.8);
+  --ring: hsl(0, 0%, 10%);
+  --chart-1: hsl(0, 0%, 10%);
+  --chart-2: hsl(0, 0%, 25%);
+  --chart-3: hsl(0, 0%, 40%);
+  --chart-4: hsl(0, 0%, 55%);
+  --chart-5: hsl(0, 0%, 70%);
+  --sidebar: hsla(0, 0%, 96%, 0.9);
+  --sidebar-foreground: hsl(0, 0%, 10%);
+  --sidebar-primary: hsl(0, 0%, 10%);
   --sidebar-primary-foreground: hsl(0, 0%, 100%);
-  --sidebar-accent: hsl(270, 30%, 30%);
-  --sidebar-accent-foreground: hsl(0, 0%, 100%);
-  --sidebar-border: hsla(270, 30%, 25%, 0.5);
-  --sidebar-ring: hsl(262, 83%, 58%);
+  --sidebar-accent: hsl(0, 0%, 88%);
+  --sidebar-accent-foreground: hsl(0, 0%, 10%);
+  --sidebar-border: hsla(0, 0%, 80%, 0.5);
+  --sidebar-ring: hsl(0, 0%, 10%);
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: 'JetBrains Mono', Menlo, monospace;
   --radius: 0.75rem;
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.25);
-  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 15px -3px rgba(138, 43, 226, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
-  --shadow-xl: 0 20px 25px -5px rgba(138, 43, 226, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
 }
 
 .dark {
-  --background: hsl(222, 15%, 8%);
-  --foreground: hsl(0, 0%, 98%);
-  --card: hsl(222, 13%, 12%);
-  --card-foreground: hsl(0, 0%, 98%);
-  --popover: hsl(222, 13%, 12%);
-  --popover-foreground: hsl(0, 0%, 98%);
-  --primary: hsl(262, 83%, 58%);
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(0, 0%, 10%);
+  --card: hsl(0, 0%, 96%);
+  --card-foreground: hsl(0, 0%, 10%);
+  --popover: hsl(0, 0%, 96%);
+  --popover-foreground: hsl(0, 0%, 10%);
+  --primary: hsl(0, 0%, 10%);
   --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(262, 83%, 58%);
+  --secondary: hsl(0, 0%, 15%);
   --secondary-foreground: hsl(0, 0%, 100%);
-  --muted: hsl(222, 10%, 16%);
-  --muted-foreground: hsl(220, 9%, 60%);
-  --accent: hsl(45, 93%, 47%);
-  --accent-foreground: hsl(222, 15%, 8%);
+  --muted: hsl(0, 0%, 92%);
+  --muted-foreground: hsl(0, 0%, 40%);
+  --accent: hsl(0, 0%, 20%);
+  --accent-foreground: hsl(0, 0%, 100%);
   --destructive: hsl(0, 72%, 51%);
   --destructive-foreground: hsl(0, 0%, 100%);
-  --border: hsl(222, 10%, 22%);
-  --input: hsl(222, 10%, 18%);
-  --ring: hsl(262, 83%, 58%);
-  --chart-1: hsl(45, 93%, 47%);
-  --chart-2: hsl(159, 75%, 45%);
-  --chart-3: hsl(42, 90%, 58%);
-  --chart-4: hsl(147, 72%, 48%);
-  --chart-5: hsl(341, 70%, 55%);
-  --sidebar: hsl(222, 13%, 12%);
-  --sidebar-foreground: hsl(0, 0%, 98%);
-  --sidebar-primary: hsl(262, 83%, 58%);
-  --sidebar-primary-foreground: hsl(222, 15%, 8%);
-  --sidebar-accent: hsl(222, 10%, 20%);
-  --sidebar-accent-foreground: hsl(0, 0%, 90%);
-  --sidebar-border: hsl(222, 10%, 22%);
-  --sidebar-ring: hsl(262, 83%, 58%);
+  --border: hsl(0, 0%, 85%);
+  --input: hsl(0, 0%, 90%);
+  --ring: hsl(0, 0%, 10%);
+  --chart-1: hsl(0, 0%, 10%);
+  --chart-2: hsl(0, 0%, 25%);
+  --chart-3: hsl(0, 0%, 40%);
+  --chart-4: hsl(0, 0%, 55%);
+  --chart-5: hsl(0, 0%, 70%);
+  --sidebar: hsl(0, 0%, 96%);
+  --sidebar-foreground: hsl(0, 0%, 10%);
+  --sidebar-primary: hsl(0, 0%, 10%);
+  --sidebar-primary-foreground: hsl(0, 0%, 100%);
+  --sidebar-accent: hsl(0, 0%, 88%);
+  --sidebar-accent-foreground: hsl(0, 0%, 10%);
+  --sidebar-border: hsl(0, 0%, 85%);
+  --sidebar-ring: hsl(0, 0%, 10%);
 }
 
 @layer base {
@@ -109,17 +109,17 @@
 
 .funnel-node:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(138, 43, 226, 0.4);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
 .connection-line {
-  stroke: hsl(262, 83%, 58%);
+  stroke: hsl(0, 0%, 10%);
   stroke-width: 2;
   fill: none;
 }
 
 .sidebar-item:hover {
-  background-color: hsl(240, 4%, 24%);
+  background-color: hsl(0, 0%, 90%);
 }
 
 .status-connected {
@@ -135,54 +135,54 @@
     45deg,
     transparent,
     transparent 10px,
-    rgba(138, 43, 226, 0.1) 10px,
-    rgba(138, 43, 226, 0.1) 20px
+    rgba(0, 0, 0, 0.05) 10px,
+    rgba(0, 0, 0, 0.05) 20px
   );
 }
 
 /* React Flow custom styles */
 .react-flow__node {
-  background: hsl(240, 10%, 15%);
-  border: 1px solid hsl(240, 6%, 25%);
+  background: hsl(0, 0%, 98%);
+  border: 1px solid hsl(0, 0%, 80%);
   border-radius: 0.5rem;
-  color: hsl(0, 0%, 95%);
+  color: hsl(0, 0%, 10%);
 }
 
 .react-flow__node.selected {
-  border-color: hsl(270, 85%, 65%);
-  box-shadow: 0 0 0 2px hsl(270, 85%, 65%, 0.4);
+  border-color: hsl(0, 0%, 10%);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2);
 }
 
 .react-flow__edge-path {
-  stroke: hsl(262, 83%, 58%);
+  stroke: hsl(0, 0%, 10%);
   stroke-width: 2;
 }
 
 .react-flow__controls {
-  background: hsl(240, 10%, 15%);
-  border: 1px solid hsl(240, 6%, 25%);
+  background: hsl(0, 0%, 98%);
+  border: 1px solid hsl(0, 0%, 80%);
 }
 
 .react-flow__controls button {
-  background: hsl(240, 10%, 15%);
-  border-bottom: 1px solid hsl(240, 6%, 25%);
-  color: hsl(0, 0%, 95%);
+  background: hsl(0, 0%, 98%);
+  border-bottom: 1px solid hsl(0, 0%, 80%);
+  color: hsl(0, 0%, 10%);
 }
 
 .react-flow__controls button:hover {
-  background: hsl(240, 4%, 24%);
+  background: hsl(0, 0%, 90%);
 }
 
 .react-flow__minimap {
-  background: hsl(240, 10%, 15%);
-  border: 1px solid hsl(240, 6%, 25%);
+  background: hsl(0, 0%, 98%);
+  border: 1px solid hsl(0, 0%, 80%);
 }
 
 .react-flow__background {
-  background: hsl(240, 10%, 10%);
+  background: hsl(0, 0%, 96%);
 }
 
-/* Space Theme Animations and Effects */
+/* Theme Animations and Effects */
 @keyframes float {
   0%, 100% {
     transform: translateY(0px);
@@ -194,10 +194,10 @@
 
 @keyframes glow {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(138, 43, 226, 0.3), 0 0 40px rgba(138, 43, 226, 0.2);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15), 0 0 40px rgba(0, 0, 0, 0.1);
   }
   50% {
-    box-shadow: 0 0 30px rgba(138, 43, 226, 0.5), 0 0 60px rgba(138, 43, 226, 0.3);
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.25), 0 0 60px rgba(0, 0, 0, 0.15);
   }
 }
 
@@ -225,25 +225,25 @@
 
 .card-hover:hover {
   transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 20px 40px -15px rgba(138, 43, 226, 0.4);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.2);
 }
 
 .glass-effect {
-  background: rgba(15, 15, 35, 0.7);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(138, 43, 226, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .cosmic-gradient {
   background: linear-gradient(135deg, 
-    rgba(138, 43, 226, 0.1) 0%, 
-    rgba(75, 0, 130, 0.1) 50%, 
-    rgba(25, 25, 112, 0.1) 100%);
+    rgba(0, 0, 0, 0.05) 0%, 
+    rgba(30, 30, 30, 0.05) 50%, 
+    rgba(60, 60, 60, 0.05) 100%);
 }
 
 .neon-border {
-  border: 1px solid rgba(138, 43, 226, 0.5);
-  box-shadow: 0 0 10px rgba(138, 43, 226, 0.3);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
 }
 
 .button-glow {
@@ -251,7 +251,7 @@
 }
 
 .button-glow:hover {
-  box-shadow: 0 0 20px rgba(138, 43, 226, 0.6), 0 0 40px rgba(138, 43, 226, 0.4);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 0, 0, 0.2);
   transform: translateY(-2px);
 }
 
@@ -262,14 +262,14 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(240, 40%, 8%);
+  background: hsl(0, 0%, 96%);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, hsl(260, 85%, 65%), hsl(280, 75%, 60%));
+  background: linear-gradient(180deg, hsl(0, 0%, 30%), hsl(0, 0%, 10%));
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, hsl(260, 85%, 75%), hsl(280, 75%, 70%));
+  background: linear-gradient(180deg, hsl(0, 0%, 40%), hsl(0, 0%, 20%));
 }

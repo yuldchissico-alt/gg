@@ -277,14 +277,14 @@ export default function WhatsAppPreview({
         <div>
           {message.mediaUrl ? (
             <div className="space-y-2">
-              <div className={`relative w-full max-w-[200px] flex items-center gap-1.5 px-3 py-2 rounded ${isPlaying ? 'bg-purple-600/30' : 'bg-purple-600/10'}`}>
+              <div className={`relative w-full max-w-[200px] flex items-center gap-1.5 px-3 py-2 rounded ${isPlaying ? 'bg-gray-600/30' : 'bg-gray-600/10'}`}>
                 {/* Animated waveform bars - like recording in real time */}
                 <div className="flex items-center gap-0.5 h-8">
-                  <div className="w-1 bg-purple-400 rounded-full" style={{ height: isPlaying ? '6px' : '2px', animation: isPlaying ? 'wave 0.6s ease-in-out infinite' : 'none', animationDelay: '0ms' }} />
-                  <div className="w-1 bg-purple-400 rounded-full" style={{ height: isPlaying ? '8px' : '2px', animation: isPlaying ? 'wave 0.6s ease-in-out infinite' : 'none', animationDelay: '100ms' }} />
-                  <div className="w-1 bg-purple-400 rounded-full" style={{ height: isPlaying ? '12px' : '2px', animation: isPlaying ? 'wave 0.6s ease-in-out infinite' : 'none', animationDelay: '200ms' }} />
-                  <div className="w-1 bg-purple-400 rounded-full" style={{ height: isPlaying ? '10px' : '2px', animation: isPlaying ? 'wave 0.6s ease-in-out infinite' : 'none', animationDelay: '300ms' }} />
-                  <div className="w-1 bg-purple-400 rounded-full" style={{ height: isPlaying ? '8px' : '2px', animation: isPlaying ? 'wave 0.6s ease-in-out infinite' : 'none', animationDelay: '400ms' }} />
+                  <div className="w-1 bg-gray-400 rounded-full" style={{ height: isPlaying ? '6px' : '2px', animation: isPlaying ? 'wave 0.6s ease-in-out infinite' : 'none', animationDelay: '0ms' }} />
+                  <div className="w-1 bg-gray-400 rounded-full" style={{ height: isPlaying ? '8px' : '2px', animation: isPlaying ? 'wave 0.6s ease-in-out infinite' : 'none', animationDelay: '100ms' }} />
+                  <div className="w-1 bg-gray-400 rounded-full" style={{ height: isPlaying ? '12px' : '2px', animation: isPlaying ? 'wave 0.6s ease-in-out infinite' : 'none', animationDelay: '200ms' }} />
+                  <div className="w-1 bg-gray-400 rounded-full" style={{ height: isPlaying ? '10px' : '2px', animation: isPlaying ? 'wave 0.6s ease-in-out infinite' : 'none', animationDelay: '300ms' }} />
+                  <div className="w-1 bg-gray-400 rounded-full" style={{ height: isPlaying ? '8px' : '2px', animation: isPlaying ? 'wave 0.6s ease-in-out infinite' : 'none', animationDelay: '400ms' }} />
                 </div>
                 <span className="text-xs text-gray-300 whitespace-nowrap">
                   {isPlaying ? '▶' : ''}
@@ -399,7 +399,7 @@ export default function WhatsAppPreview({
               </svg>
             </button>
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-purple-600 text-white text-sm font-bold">
+              <AvatarFallback className="bg-black text-white text-sm font-bold">
                 R
               </AvatarFallback>
             </Avatar>
@@ -486,9 +486,9 @@ export default function WhatsAppPreview({
                 <div className="bg-[#202c33] rounded-lg rounded-bl-sm px-4 py-3 shadow-lg relative">
                   <div className="absolute bottom-0 left-[-7px] border-r-[7px] border-r-[#202c33] border-b-[7px] border-b-transparent w-0 h-0"></div>
                   <div className="flex gap-1.5">
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                   </div>
                 </div>
               </div>
