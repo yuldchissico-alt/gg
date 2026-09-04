@@ -42,27 +42,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User routes
+  // User routes - apenas usuário autenticado
   app.get('/api/user/me', async (req, res) => {
     try {
-      let user = await storage.getUser(DEFAULT_USER_ID);
+      const cookies = req.headers.cookie || '';
+      const isAuthenticated = cookies.includes('auth_user=yuldchissico11');
+
+      if (!isAuthenticated) {
+        return res.status(401).json({ message: "Não autenticado" });
+      }
+
+      let user = await storage.getUserByEmail("yuldchissico11@gmail.com");
       if (!user) {
-        user = await storage.getUserByEmail("yuldchissico11@gmail.com");
+        user = await storage.getUser(DEFAULT_USER_ID);
       }
       
       if (!user) {
-        res.json(DEMO_USER);
-        return;
+        return res.status(404).json({ message: "Usuário não encontrado" });
       }
 
       await storage.checkPlanExpiration(user.id);
       const updatedUser = await storage.getUser(user.id);
 
       res.json({
-        id: updatedUser?.id || DEMO_USER.id,
-        firstName: updatedUser?.firstName || DEMO_USER.firstName,
-        lastName: updatedUser?.lastName || DEMO_USER.lastName,
-        email: updatedUser?.email || DEMO_USER.email,
+        id: updatedUser?.id || DEFAULT_USER_ID,
+        firstName: updatedUser?.firstName || 'Yuld',
+        lastName: updatedUser?.lastName || 'Chissico',
+        email: updatedUser?.email || 'yuldchissico11@gmail.com',
         planType: updatedUser?.planType || 'pro',
         planExpiresAt: updatedUser?.planExpiresAt || null,
         isBlocked: updatedUser?.isBlocked || false
@@ -76,24 +82,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Auth routes connected directly to PostgreSQL database
+  // Auth routes: ÚNICO usuário aceito é yuldchissico11@gmail.com com senha yuld0000
   app.post('/api/auth/login', async (req, res) => {
     try {
       const { email, password } = req.body;
-      if (!email) {
-        return res.status(400).json({ message: "E-mail é obrigatório" });
+      const cleanEmail = (email || '').toLowerCase().trim();
+      const cleanPassword = (password || '').trim();
+
+      // REGRA ESTRITA: Apenas yuldchissico11@gmail.com e senha yuld0000
+      if (cleanEmail !== 'yuldchissico11@gmail.com' || cleanPassword !== 'yuld0000') {
+        return res.status(401).json({ 
+          success: false, 
+          message: "Credenciais inválidas. Apenas o usuário yuldchissico11@gmail.com é autorizado." 
+        });
       }
 
-      let user = await storage.getUserByEmail(email.toLowerCase().trim());
+      let user = await storage.getUserByEmail('yuldchissico11@gmail.com');
       if (!user) {
-        // Obter ou criar usuário no banco
-        const namePart = email.split('@')[0];
-        const firstName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
         user = await storage.upsertUser({
-          email: email.toLowerCase().trim(),
-          password: password || '123456',
-          firstName,
-          lastName: '',
+          id: DEFAULT_USER_ID,
+          email: 'yuldchissico11@gmail.com',
+          password: 'yuld0000',
+          firstName: 'Yuld',
+          lastName: 'Chissico',
           planType: 'pro',
         });
       }
@@ -101,6 +112,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(500).json({ message: "Não foi possível carregar o usuário" });
       }
+
+      // Definir cookie de autenticação persistente (30 dias)
+      res.setHeader('Set-Cookie', 'auth_user=yuldchissico11; Path=/; Max-Age=2592000; SameSite=Lax');
 
       res.json({
         success: true,
@@ -120,6 +134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post('/api/auth/logout', async (_req, res) => {
+    res.setHeader('Set-Cookie', 'auth_user=; Path=/; Max-Age=0; SameSite=Lax');
     res.json({ success: true, message: "Logged out successfully" });
   });
 

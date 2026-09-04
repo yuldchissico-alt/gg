@@ -67,7 +67,7 @@ function Router() {
       if (!isLoggedIn && location !== "/" && location !== "/login") {
         setLocation("/login");
       }
-      if (isLoggedIn && location === "/") {
+      if (isLoggedIn && (location === "/" || location === "/login")) {
         setLocation("/dashboard");
       }
     }

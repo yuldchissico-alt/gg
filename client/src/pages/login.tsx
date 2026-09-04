@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Rocket } from "lucide-react";
 import { useLocation } from "wouter";
 import logoHeader from "@assets/logo-dashboard-old.png";
+import { queryClient } from "@/lib/queryClient";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -33,6 +34,9 @@ export default function Login() {
       if (!response.ok || !data.success) {
         throw new Error(data.message || "Falha ao entrar");
       }
+
+      queryClient.setQueryData(["/api/user/me"], data.user);
+      queryClient.invalidateQueries({ queryKey: ["/api/user/me"] });
 
       toast({
         title: "Sucesso",
