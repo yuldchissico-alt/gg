@@ -18,6 +18,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { validateFunnelJSON, funnelJSONSchema } from "@shared/funnel-json-types";
 import { convertFunnelJSONToFlowData } from "./services/funnelJsonConverter";
+import { getPool } from "./db";
 
 const DEFAULT_USER_ID = "default-user";
 const DEMO_USER = {
@@ -29,6 +30,43 @@ const DEMO_USER = {
 
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health & diagnostics endpoint
+  app.get('/api/health', async (_req, res) => {
+    const hasDbUrl = !!process.env.DATABASE_URL;
+    let dbStatus = "not_configured";
+    let dbError: string | null = null;
+
+    if (hasDbUrl) {
+      try {
+        const pool = getPool();
+        if (pool) {
+          await pool.query("SELECT 1");
+          dbStatus = "connected";
+        } else {
+          dbStatus = "pool_null";
+        }
+      } catch (err: any) {
+        dbStatus = "error";
+        dbError = err?.message || String(err);
+      }
+    }
+
+    const wsStatus = await whatsappService.getConnectionStatus("default-user");
+
+    res.json({
+      status: "ok",
+      environment: process.env.NODE_ENV,
+      database: {
+        configured: hasDbUrl,
+        status: dbStatus,
+        error: dbError,
+        host: hasDbUrl ? (process.env.DATABASE_URL!.split("@")[1]?.split("/")[0] || "configured") : "missing",
+      },
+      whatsapp: wsStatus,
+      platform: process.platform,
+    });
+  });
+
   // Funnel JSON route
   app.get('/api/funnel-json', async (req, res) => {
     try {
@@ -212,7 +250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ qrCode });
     } catch (error: any) {
       console.error("❌ Error generating QR code:", error);
-      res.status(500).json({ message: "Failed to generate QR code" });
+      res.status(500).json({ message: error?.message || "Falha ao gerar QR code" });
     }
   });
 
