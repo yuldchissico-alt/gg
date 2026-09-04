@@ -358,20 +358,37 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
 
   useEffect(() => {
-    const savedSettings = localStorage.getItem("generalSettings");
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        setSettings(parsed);
-      } catch (error) {
-        console.error("Erro ao carregar configurações:", error);
-      }
-    }
+    // Carregar configurações diretamente do banco de dados (PostgreSQL)
+    fetch('/api/user/settings', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data) {
+          setSettings(prev => ({
+            companyName: data.companyName || data.company_name || prev.companyName,
+            companyEmail: data.companyEmail || data.company_email || prev.companyEmail,
+            timezone: data.timezone || prev.timezone,
+            language: data.language || prev.language,
+          }));
+        }
+      })
+      .catch(error => {
+        console.error("Erro ao carregar configurações do banco de dados:", error);
+      });
   }, []);
 
-  const updateSettings = (newSettings: Settings) => {
+  const updateSettings = async (newSettings: Settings) => {
     setSettings(newSettings);
-    localStorage.setItem("generalSettings", JSON.stringify(newSettings));
+    // Salvar diretamente no banco de dados (PostgreSQL)
+    try {
+      await fetch('/api/user/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(newSettings),
+      });
+    } catch (error) {
+      console.error("Erro ao salvar configurações no banco de dados:", error);
+    }
   };
 
   const t = (key: string): string => {

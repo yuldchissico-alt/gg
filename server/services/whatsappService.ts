@@ -259,9 +259,16 @@ export class WhatsAppService {
       try {
         if (msg.fromMe) return;
 
-        const isGroup = msg.from.endsWith("@g.us");
-        const senderId = (isGroup ? (msg.author || msg.from) : msg.from) || "";
-        const phoneNumber = senderId.split("@")[0];
+        let contactData: any = null;
+        try {
+          contactData = await msg.getContact();
+        } catch {
+          // ignore
+        }
+
+        const realNumber = contactData?.number || (msg.from.includes("@c.us") ? msg.from.split("@")[0] : msg.from);
+        const contactName = contactData?.pushname || contactData?.name || `Contato ${realNumber}`;
+        const phoneNumber = realNumber;
         const messageText = (msg.body || "").trim();
 
         if (!phoneNumber || !messageText) return;
@@ -272,7 +279,7 @@ export class WhatsAppService {
           .replace(/[\u0300-\u036f]/g, "")
           .replace(/[^\w\s]/gi, "");
 
-        console.log(`[USER:${userId}] 📩 Mensagem recebida de ${phoneNumber}: "${messageText}"`);
+        console.log(`[USER:${userId}] 📩 Mensagem recebida de ${phoneNumber} (${contactName}): "${messageText}"`);
 
         const { funnelService } = await import("./funnelService");
 
@@ -281,7 +288,7 @@ export class WhatsAppService {
           contact = await storage.createContact({
             userId,
             phoneNumber,
-            name: `Contato ${phoneNumber}`,
+            name: contactName,
             tags: [],
             isActive: true,
           });
@@ -297,9 +304,28 @@ export class WhatsAppService {
           externalId: msg.id?._serialized,
         });
 
+        // Verificar se este contato tem execuções pausadas aguardando resposta
+        const waitingExecutions = await storage.getWaitingFunnelExecutions(contact.id);
+        if (waitingExecutions && waitingExecutions.length > 0) {
+          for (const waitingExec of waitingExecutions) {
+            console.log(`💬 [WHATSAPP] Resposta recebida de ${phoneNumber}. Retomando execução de funil ${waitingExec.id}`);
+            await funnelService.resumeFunnelExecution(waitingExec.id, messageText, msg);
+          }
+          return;
+        }
+
         const funnels = await storage.getAllFunnels(userId);
         const triggeredFunnels = funnels.filter((f) => {
           const isActive = f.status === "active";
+          if (!isActive) return false;
+
+          const isAnyMatch = f.triggerPhrases?.some((p) => {
+            const trimmed = p.trim().toLowerCase();
+            return trimmed === "*" || trimmed === "__any__" || trimmed === "qualquer mensagem" || trimmed === "qualquer";
+          });
+
+          if (isAnyMatch) return true;
+
           const hasMatch = f.triggerPhrases?.some((phrase) => {
             const normalizedPhrase = phrase
               .trim()
@@ -308,11 +334,13 @@ export class WhatsAppService {
               .replace(/[\u0300-\u036f]/g, "")
               .replace(/[^\w\s]/gi, "");
 
+            if (!normalizedPhrase) return false;
+
             const words = normalizedIncoming.split(/\s+/);
             return words.includes(normalizedPhrase) || normalizedIncoming.startsWith(normalizedPhrase);
           });
 
-          return isActive && hasMatch;
+          return hasMatch;
         });
 
         for (const funnel of triggeredFunnels) {
@@ -421,12 +449,23 @@ export class WhatsAppService {
       }
 
       const cleanPhone = phoneNumber.replace(/\D/g, "");
-      const chatId = cleanPhone.includes("@") ? cleanPhone : `${cleanPhone}@c.us`;
+      // Bloqueio do número 843955854 conforme solicitação do usuário
+      if (cleanPhone.includes("843955854")) {
+        console.warn(`🛑 [WHATSAPP] Envio bloqueado para o número proibido: ${phoneNumber}`);
+        return false;
+      }
+
+      let chatId = phoneNumber.trim();
+      if (!chatId.includes("@")) {
+        // Se número tem 9 dígitos (formato local Moçambique), adiciona prefixo 258
+        const fullPhone = cleanPhone.length === 9 ? `258${cleanPhone}` : cleanPhone;
+        chatId = `${fullPhone}@c.us`;
+      }
 
       try {
         const chat = await client.getChatById(chatId);
         await chat.sendStateTyping();
-        const delay = Math.min(Math.max(message.length * 50, 1000), 4000);
+        const delay = Math.min(Math.max((message || "").length * 50, 500), 2000);
         await new Promise((resolve) => setTimeout(resolve, delay));
         await chat.clearState();
       } catch {
@@ -443,29 +482,113 @@ export class WhatsAppService {
 
       if (mediaUrl) {
         try {
-          if (mediaUrl.startsWith("data:")) {
-            const mimeType = mediaUrl.substring(5, mediaUrl.indexOf(";"));
-            const base64 = mediaUrl.split(",")[1] || "";
-            const media = new WAWebJS.MessageMedia(mimeType, base64, mediaFileName);
-            await client.sendMessage(chatId, media, { caption: message });
-            return true;
+          let targetUrl = mediaUrl.trim();
+          let filename = mediaFileName;
+
+          if (targetUrl.startsWith("doc:")) {
+            const raw = targetUrl.substring(4);
+            const sepIndex = raw.indexOf("|");
+            if (sepIndex !== -1) {
+              filename = filename || raw.substring(0, sepIndex);
+              targetUrl = raw.substring(sepIndex + 1);
+            } else {
+              targetUrl = raw;
+            }
+          } else if (targetUrl.startsWith("video:")) {
+            targetUrl = targetUrl.substring(6);
+          } else if (targetUrl.startsWith("audio:")) {
+            targetUrl = targetUrl.substring(6);
           }
 
-          const url = mediaUrl.replace(/^(video:|audio:|doc:)/, "");
-          const media = await WAWebJS.MessageMedia.fromUrl(url, { unsafeMime: true });
-          await client.sendMessage(chatId, media, { caption: message });
+          let media: WAWebJS.MessageMedia;
+
+          if (targetUrl.startsWith("data:")) {
+            let mimeType = targetUrl.substring(5, targetUrl.indexOf(";"));
+            // Normalizar mime types comuns
+            if (mimeType === 'audio/mp3') mimeType = 'audio/mpeg';
+            const base64 = targetUrl.split(",")[1] || "";
+            media = new WAWebJS.MessageMedia(mimeType, base64, filename);
+          } else if (targetUrl.startsWith("http://") || targetUrl.startsWith("https://")) {
+            media = await WAWebJS.MessageMedia.fromUrl(targetUrl, { unsafeMime: true });
+            if (filename) {
+              media.filename = filename;
+            }
+          } else {
+            throw new Error(`Arquivo de mídia sem dados carregados ("${targetUrl.substring(0, 30)}"). Faça o upload do arquivo novamente no painel.`);
+          }
+
+          const isAudio = media.mimetype?.startsWith("audio/");
+          const isVideo = media.mimetype?.startsWith("video/");
+          const isDoc = !media.mimetype?.startsWith("image/") && !isVideo && !isAudio;
+
+          const sendOptions: any = {};
+          if (message && !isAudio) {
+            sendOptions.caption = message;
+          }
+          if (isAudio) {
+            // Apenas enviar como nota de voz se for ogg/opus, senão enviar como áudio padrão compatível
+            if (media.mimetype.includes("ogg") || media.mimetype.includes("opus")) {
+              sendOptions.sendAudioAsVoice = true;
+            }
+          }
+          if (isDoc) {
+            sendOptions.sendMediaAsDocument = true;
+          }
+
+          // Tentar abrir o chat antes de enviar para evitar erro 'getChat' undefined
+          try {
+            await client.getChatById(chatId);
+          } catch (_) {
+            // Ignorar se o chat ainda não existir
+          }
+
+          try {
+            await client.sendMessage(chatId, media, sendOptions);
+          } catch (sendMediaErr: any) {
+            console.warn(`⚠️ [WHATSAPP] Primeira tentativa de envio de mídia falhou, tentando modo compatibilidade:`, sendMediaErr);
+            // Se for erro de getChat (chat não existe), aguardar 1s e tentar novamente
+            if (sendMediaErr?.message?.includes('getChat') || sendMediaErr?.message?.includes('Cannot read')) {
+              await new Promise(res => setTimeout(res, 1000));
+              await client.sendMessage(chatId, media, sendOptions);
+            } else if (sendOptions.sendAudioAsVoice) {
+              delete sendOptions.sendAudioAsVoice;
+              await client.sendMessage(chatId, media, sendOptions);
+            } else if (isVideo && !sendOptions.sendMediaAsDocument) {
+              sendOptions.sendMediaAsDocument = true;
+              await client.sendMessage(chatId, media, sendOptions);
+            } else {
+              throw sendMediaErr;
+            }
+          }
+
+          console.log(`✅ [WHATSAPP] Mídia enviada com sucesso para ${chatId} (${media.mimetype}, nome: ${filename || 'mídia'})`);
           return true;
         } catch (mediaError: any) {
-          console.error(`❌ Erro ao enviar mídia para ${phoneNumber}:`, mediaError);
-          await client.sendMessage(chatId, message + "\n\n(Erro ao carregar mídia)");
-          return true;
+          console.error(`❌ Erro ao enviar mídia para ${phoneNumber}:`, mediaError?.message || mediaError);
+          await client.sendMessage(chatId, (message ? message + "\n\n" : "") + "⚠️ [Erro ao carregar arquivo de mídia]");
+          return false;
         }
       }
 
-      await client.sendMessage(chatId, message);
-      return true;
-    } catch (error) {
-      console.error("❌ Erro ao enviar mensagem via whatsapp-web.js:", error);
+      try {
+        await client.sendMessage(chatId, message);
+        console.log(`✅ [WHATSAPP] Mensagem enviada com sucesso para ${chatId}`);
+        return true;
+      } catch (sendError: any) {
+        // Fallback: se o envio falhou com @c.us mas tínhamos um ID longo (possível @lid) ou vice-versa
+        if (chatId.includes("@c.us") && phoneNumber.length > 13) {
+          const lidChat = `${phoneNumber.replace(/\D/g, "")}@lid`;
+          try {
+            console.log(`🔄 [WHATSAPP] Tentando fallback para ${lidChat}...`);
+            await client.sendMessage(lidChat, message);
+            console.log(`✅ [WHATSAPP] Mensagem enviada via fallback LID para ${lidChat}`);
+            return true;
+          } catch {}
+        }
+        throw sendError;
+      }
+    } catch (error: any) {
+      console.error("❌ Erro ao enviar mensagem via whatsapp-web.js:", error?.message || error);
       return false;
     }
   }

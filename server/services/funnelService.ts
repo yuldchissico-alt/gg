@@ -17,6 +17,10 @@ interface FunnelNodeData {
     content?: string;
     mediaUrl?: string;
     delayMinutes?: number;
+    delayValue?: number;
+    delayUnit?: 'segundo' | 'minuto' | 'hora';
+    waitForReply?: boolean;
+    nodeType?: string;
     conditions?: any;
   };
   position: { x: number; y: number };
@@ -143,18 +147,44 @@ export class FunnelService {
 
     // If current node is a delay node, wait before continuing to next node
     if (currentNodeType === 'delay') {
-        const delayMinutes = currentNode.data.delayMinutes || 0;
-        if (delayMinutes > 0) {
-          const schedulerService = await getSchedulerService();
-          await schedulerService.scheduleTask({
-            type: 'funnel_next_node',
-            data: { executionId },
-            executeAt: new Date(Date.now() + delayMinutes * 60 * 1000),
-          });
-          console.log(`⏰ Aguardando ${delayMinutes} minuto(s) antes da próxima mensagem`);
-          return; // Stop here, scheduler will call processNextNode later
-        }
+      const waitForReply = (currentNode.data as any)?.waitForReply;
+      if (waitForReply) {
+        await storage.updateFunnelExecution(executionId, {
+          status: 'waiting_reply',
+          data: {
+            ...(execution.data as object || {}),
+            waitingNodeId: currentNode.id,
+            waitingSince: new Date().toISOString()
+          }
+        });
+        console.log(`⏸️ [FUNNEL] Execução ${executionId} pausada no nó ${currentNode.id}: aguardando resposta do cliente`);
+        return; // Stop here, will be resumed by resumeFunnelExecution when reply arrives
       }
+
+      // Calculate delay in milliseconds
+      const rawDelay = (currentNode.data as any)?.delayValue ?? (currentNode.data as any)?.delayMinutes ?? 5;
+      const delayValue = Math.max(1, Number(rawDelay) || 5);
+      const delayUnit = (currentNode.data as any)?.delayUnit || 'minuto';
+
+      let delayMs = 5000;
+      if (delayUnit === 'segundo') {
+        delayMs = delayValue * 1000;
+      } else if (delayUnit === 'hora') {
+        delayMs = delayValue * 60 * 60 * 1000;
+      } else {
+        // minuto
+        delayMs = delayValue * 60 * 1000;
+      }
+
+      const schedulerService = await getSchedulerService();
+      await schedulerService.scheduleTask({
+        type: 'funnel_next_node',
+        data: { executionId },
+        executeAt: new Date(Date.now() + delayMs),
+      });
+      console.log(`⏰ [FUNNEL] Aguardando ${delayValue} ${delayUnit}(s) (${delayMs / 1000}s) antes de enviar a próxima mensagem`);
+      return; // Stop here, scheduler will call processNextNode later
+    }
       
     // For all other nodes, process next node immediately
     if (currentNodeType !== 'message' || !flowData.edges.some(e => e.source === currentNode.id)) {
@@ -210,7 +240,14 @@ export class FunnelService {
 
       case 'delay':
         // Delay is handled in the scheduling logic
-        console.log(`⏰ [MONITOR] Aguardando ${node.data.delayMinutes} minutos para ${contact.phoneNumber}`);
+        const isWaitingReply = (node.data as any)?.waitForReply;
+        if (isWaitingReply) {
+          console.log(`💬 [MONITOR] Nó ${node.id}: Aguardando resposta do cliente para ${contact.phoneNumber}`);
+        } else {
+          const val = (node.data as any)?.delayValue ?? node.data.delayMinutes ?? 5;
+          const unit = (node.data as any)?.delayUnit ?? 'minuto';
+          console.log(`⏰ [MONITOR] Nó ${node.id}: Aguardando ${val} ${unit}(s) para ${contact.phoneNumber}`);
+        }
         break;
 
       case 'condition':
@@ -323,6 +360,34 @@ export class FunnelService {
 
   async resumeFunnel(funnelId: string): Promise<void> {
     await storage.updateFunnel(funnelId, { status: 'active' });
+  }
+
+  async resumeFunnelExecution(executionId: string, replyMessage?: string, quotedMsg?: any): Promise<void> {
+    try {
+      const execution = await storage.getFunnelExecution(executionId);
+      if (!execution || execution.status !== 'waiting_reply') {
+        console.log(`⚠️ [FUNNEL] Execução ${executionId} não está no estado 'waiting_reply' (status: ${execution?.status})`);
+        return;
+      }
+
+      console.log(`▶️ [FUNNEL] Retomando execução ${executionId} após resposta do cliente: "${replyMessage || ''}"`);
+
+      // Update execution status back to active and save client response
+      await storage.updateFunnelExecution(executionId, {
+        status: 'active',
+        data: {
+          ...(execution.data as object || {}),
+          lastClientReply: replyMessage,
+          quotedMsg: quotedMsg || (execution.data as any)?.quotedMsg,
+          resumedAt: new Date().toISOString()
+        }
+      });
+
+      // Move to next node immediately
+      await this.processNextNode(executionId);
+    } catch (error) {
+      console.error('Error resuming funnel execution:', error);
+    }
   }
 
   async stopFunnelExecution(executionId: string): Promise<void> {

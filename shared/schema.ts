@@ -32,6 +32,7 @@ export const planTypeEnum = pgEnum("plan_type", ["free", "basic", "pro", "enterp
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
+  password: varchar("password"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
@@ -155,12 +156,82 @@ export const funnelExecutions = pgTable("funnel_executions", {
   data: jsonb("data"), // Store execution state
 });
 
+export const userSettings = pgTable("user_settings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
+  companyName: varchar("company_name").default("Pilot Zap"),
+  companyEmail: varchar("company_email").default("contato@pilotzap.com"),
+  language: varchar("language").default("pt-BR"),
+  timezone: varchar("timezone").default("Africa/Maputo"),
+  notificationsEnabled: boolean("notifications_enabled").default(true),
+  autoReplyEnabled: boolean("auto_reply_enabled").default(false),
+  autoReplyMessage: text("auto_reply_message"),
+  businessHoursStart: varchar("business_hours_start").default("08:00"),
+  businessHoursEnd: varchar("business_hours_end").default("18:00"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  action: varchar("action").notNull(),
+  resourceType: varchar("resource_type"),
+  resourceId: varchar("resource_id"),
+  details: jsonb("details"),
+  ipAddress: varchar("ip_address"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: varchar("title").notNull(),
+  message: text("message").notNull(),
+  type: varchar("type").default("info"),
+  isRead: boolean("is_read").default(false),
+  actionUrl: varchar("action_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const conversationMessages = pgTable("conversation_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+  direction: varchar("direction").notNull(),
+  type: messageTypeEnum("type").notNull(),
+  content: text("content").notNull(),
+  mediaUrl: varchar("media_url"),
+  externalId: varchar("external_id"),
+  status: varchar("status").default("received"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const tags = pgTable("tags", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name").notNull(),
+  color: varchar("color").default("#000000"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const contactTags = pgTable("contact_tags", {
+  contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+  tagId: varchar("tag_id").notNull().references(() => tags.id, { onDelete: "cascade" }),
+});
+
 // Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   whatsappConnections: many(whatsappConnections),
   funnels: many(funnels),
   contacts: many(contacts),
   messages: many(messages),
+  campaigns: many(campaigns),
+  settings: one(userSettings),
+  auditLogs: many(auditLogs),
+  notifications: many(notifications),
+  tags: many(tags),
 }));
 
 export const whatsappConnectionsRelations = relations(whatsappConnections, ({ one }) => ({
@@ -181,6 +252,8 @@ export const contactsRelations = relations(contacts, ({ one, many }) => ({
   user: one(users, { fields: [contacts.userId], references: [users.id] }),
   messages: many(messages),
   funnelExecutions: many(funnelExecutions),
+  conversationMessages: many(conversationMessages),
+  contactTags: many(contactTags),
 }));
 
 export const messagesRelations = relations(messages, ({ one }) => ({
@@ -191,6 +264,33 @@ export const messagesRelations = relations(messages, ({ one }) => ({
 export const funnelExecutionsRelations = relations(funnelExecutions, ({ one }) => ({
   funnel: one(funnels, { fields: [funnelExecutions.funnelId], references: [funnels.id] }),
   contact: one(contacts, { fields: [funnelExecutions.contactId], references: [contacts.id] }),
+}));
+
+export const userSettingsRelations = relations(userSettings, ({ one }) => ({
+  user: one(users, { fields: [userSettings.userId], references: [users.id] }),
+}));
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  user: one(users, { fields: [auditLogs.userId], references: [users.id] }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, { fields: [notifications.userId], references: [users.id] }),
+}));
+
+export const conversationMessagesRelations = relations(conversationMessages, ({ one }) => ({
+  user: one(users, { fields: [conversationMessages.userId], references: [users.id] }),
+  contact: one(contacts, { fields: [conversationMessages.contactId], references: [contacts.id] }),
+}));
+
+export const tagsRelations = relations(tags, ({ one, many }) => ({
+  user: one(users, { fields: [tags.userId], references: [users.id] }),
+  contactTags: many(contactTags),
+}));
+
+export const contactTagsRelations = relations(contactTags, ({ one }) => ({
+  contact: one(contacts, { fields: [contactTags.contactId], references: [contacts.id] }),
+  tag: one(tags, { fields: [contactTags.tagId], references: [tags.id] }),
 }));
 
 // Insert schemas
@@ -222,6 +322,44 @@ export const insertFunnelExecutionSchema = createInsertSchema(funnelExecutions).
   startedAt: true,
 });
 
+export const insertCampaignSchema = createInsertSchema(campaigns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertMessageTemplateSchema = createInsertSchema(messageTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertConversationMessageSchema = createInsertSchema(conversationMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertTagSchema = createInsertSchema(tags).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -236,3 +374,18 @@ export type WhatsappConnection = typeof whatsappConnections.$inferSelect;
 export type InsertWhatsappConnection = z.infer<typeof insertWhatsappConnectionSchema>;
 export type FunnelExecution = typeof funnelExecutions.$inferSelect;
 export type InsertFunnelExecution = z.infer<typeof insertFunnelExecutionSchema>;
+export type Campaign = typeof campaigns.$inferSelect;
+export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
+export type MessageTemplate = typeof messageTemplates.$inferSelect;
+export type InsertMessageTemplate = z.infer<typeof insertMessageTemplateSchema>;
+export type UserSettings = typeof userSettings.$inferSelect;
+export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type ConversationMessage = typeof conversationMessages.$inferSelect;
+export type InsertConversationMessage = z.infer<typeof insertConversationMessageSchema>;
+export type Tag = typeof tags.$inferSelect;
+export type InsertTag = z.infer<typeof insertTagSchema>;
+export type ContactTag = typeof contactTags.$inferSelect;

@@ -84,16 +84,7 @@ export default function Dashboard() {
     retry: false,
   });
 
-  const [displayName, setDisplayName] = useState("Usuário");
-
-  useEffect(() => {
-    const storedName = localStorage.getItem("demo_user_name");
-    if (storedName) {
-      setDisplayName(storedName);
-    } else if (user?.firstName) {
-      setDisplayName(user.firstName);
-    }
-  }, [user]);
+  const displayName = user?.firstName || (user?.email ? user.email.split('@')[0] : "Usuário");
 
   const sendTestMutation = useMutation({
     mutationFn: async () => {

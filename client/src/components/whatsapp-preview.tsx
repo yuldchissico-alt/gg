@@ -19,6 +19,9 @@ interface FunnelNode {
     mediaUrl?: string;
     mediaFileName?: string;
     delayMinutes?: number;
+    delayValue?: number;
+    delayUnit?: 'segundo' | 'minuto' | 'hora';
+    waitForReply?: boolean;
     nodeType?: string;
     location?: LocationData;
   };
@@ -115,11 +118,14 @@ export default function WhatsAppPreview({
     // Helper to check if this simulation is still active
     const isActive = () => simulationIdRef.current === simulationId;
 
+    const isAny = !triggerPhrase || triggerPhrase === "*" || triggerPhrase.toLowerCase() === "__any__" || triggerPhrase.toLowerCase() === "qualquer mensagem";
+    const initialText = isAny ? "Olá! (Qualquer mensagem)" : triggerPhrase;
+
     const userMessage: Message = {
       id: "user-trigger",
       type: "user",
-      content: triggerPhrase || "Oi",
-      displayContent: triggerPhrase || "Oi",
+      content: initialText,
+      displayContent: initialText,
       timestamp: new Date(),
     };
 
@@ -134,13 +140,33 @@ export default function WhatsAppPreview({
       
       const nodeType = (node.data as any)?.nodeType || node.type;
       
-      // Delay nodes - wait silently for the configured time
+      // Delay nodes - wait silently for the configured time or simulate reply
       if (nodeType === 'delay') {
-        const delayMinutes = node.data?.delayMinutes || 5;
-        const delayMs = delayMinutes * 60 * 1000;
+        if (node.data?.waitForReply) {
+          // In simulation: pause briefly and then simulate contact replying
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          if (!isActive()) return;
+          const replyId = `preview-reply-${Date.now()}`;
+          setMessages(prev => [...prev, {
+            id: replyId,
+            type: "user",
+            content: "Sim, me interessei!",
+            displayContent: "Sim, me interessei!",
+            timestamp: new Date(),
+          }]);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          if (!isActive()) return;
+          continue;
+        }
+
+        const delayValue = Number(node.data?.delayValue) || Number(node.data?.delayMinutes) || 5;
+        const delayUnit = node.data?.delayUnit || 'minuto';
+        let previewMs = 1500;
+        if (delayUnit === 'segundo' && delayValue <= 5) {
+          previewMs = delayValue * 1000;
+        }
         
-        // Wait for the actual configured time silently
-        await new Promise(resolve => setTimeout(resolve, delayMs));
+        await new Promise(resolve => setTimeout(resolve, previewMs));
         
         if (!isActive()) return;
         continue;

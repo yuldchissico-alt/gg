@@ -15,63 +15,42 @@ export default function Login() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
 
     setIsLoading(true);
-    
-    // Extração do primeiro nome
-    const handle = email.split('@')[0];
-    
-    // Tenta separar por caracteres especiais primeiro (. _ -)
-    // Se o email for 'joaosilva@gmail.com', handle é 'joaosilva'
-    const parts = handle.split(/[._-]/);
-    let namePart = parts[0];
-    
-    // Lista de nomes comuns para ajudar na separação se estiverem grudados
-    // Se o nome não estiver nesta lista mas estiver grudado, ainda pegaremos a primeira parte razoável
-    const commonPrefixes = [
-      'joao', 'maria', 'jose', 'ana', 'paulo', 'pedro', 'lucas', 'luiz', 'luis', 
-      'carlos', 'marcos', 'andre', 'felipe', 'rafael', 'bruno', 'tiago', 'diogo',
-      'carla', 'julia', 'fernanda', 'patricia', 'aline', 'camila', 'beatriz',
-      'gabriel', 'gustavo', 'rodrigo', 'marcelo', 'ricardo', 'fernando'
-    ];
 
-    // Se não houver separadores e o nome for longo, tenta ver se começa com um nome comum
-    if (parts.length === 1 && namePart.length > 5) {
-      const lowerName = namePart.toLowerCase();
-      for (const prefix of commonPrefixes) {
-        if (lowerName.startsWith(prefix) && lowerName.length > prefix.length) {
-          namePart = namePart.substring(0, prefix.length);
-          break;
-        }
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Falha ao entrar");
       }
+
+      toast({
+        title: "Sucesso",
+        description: `Bem-vindo(a), ${data.user.firstName || 'usuário'}!`,
+        duration: 2000,
+      });
+
+      setLocation("/dashboard");
+    } catch (error: any) {
+      console.error("Login failed:", error);
+      toast({
+        title: "Erro no Login",
+        description: error?.message || "Falha ao entrar. Verifique seus dados.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Se houver números no final do nome, vamos removê-los
-    namePart = namePart.replace(/[0-9]+$/, '');
-    
-    const capitalizedFirstName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
-    
-    localStorage.setItem("demo_user_email", email);
-    localStorage.setItem("demo_user_name", capitalizedFirstName);
-    localStorage.setItem("demo_logged_in", "true");
-
-    // Redirecionamento via wouter para evitar tela branca de reload
-    setTimeout(() => {
-      try {
-        setLocation("/dashboard");
-      } catch (error) {
-        console.error("Navigation failed:", error);
-        setIsLoading(false);
-        toast({
-          title: "Erro",
-          description: "Falha ao redirecionar. Tente recarregar a página.",
-          variant: "destructive",
-        });
-      }
-    }, 500);
   };
 
   return (

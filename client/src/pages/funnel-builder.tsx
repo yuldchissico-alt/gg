@@ -2,7 +2,6 @@ import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { saveToStorage, getStorageKey } from "@/lib/localStorage";
 import { useLocation } from "wouter";
 import type { Funnel } from "@shared/schema";
 import Sidebar from "@/components/sidebar";
@@ -55,17 +54,12 @@ export default function FunnelBuilder() {
       });
       return response.json();
     },
-    onSuccess: (newFunnel) => {
+    onSuccess: () => {
       toast({
         title: "Funil Criado",
         description: "Seu funil foi criado com sucesso!",
         duration: 2000,
       });
-      // Save to localStorage immediately
-      const funnelsList = queryClient.getQueryData<Funnel[]>(["/api/funnels"]) || [];
-      const updatedFunnels = [...funnelsList, newFunnel];
-      saveToStorage(getStorageKey("/api/funnels"), updatedFunnels);
-      
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/dashboard"] });
       setIsCreateDialogOpen(false);
@@ -86,17 +80,12 @@ export default function FunnelBuilder() {
       const response = await apiRequest("DELETE", `/api/funnels/${funnelId}`);
       return response.json();
     },
-    onSuccess: (_, funnelId) => {
+    onSuccess: () => {
       toast({
         title: "Funil Removido",
         description: "Funil removido com sucesso!",
         duration: 2000,
       });
-      // Update localStorage immediately
-      const funnelsList = queryClient.getQueryData<Funnel[]>(["/api/funnels"]) || [];
-      const updatedFunnels = funnelsList.filter(f => f.id !== funnelId);
-      saveToStorage(getStorageKey("/api/funnels"), updatedFunnels);
-      
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/dashboard"] });
     },
@@ -136,11 +125,7 @@ export default function FunnelBuilder() {
         duration: 2000,
       });
     },
-    onSuccess: (_, { funnelId, newStatus }) => {
-      // Save updated funnels to localStorage
-      const funnelsList = queryClient.getQueryData<Funnel[]>(["/api/funnels"]) || [];
-      saveToStorage(getStorageKey("/api/funnels"), funnelsList);
-      
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/dashboard"] });
     },
@@ -163,15 +148,6 @@ export default function FunnelBuilder() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/funnels"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/dashboard"] });
-      
-      // Note: Save will happen automatically when invalidateQueries refetches
-      // But we can trigger it manually here if needed
-      setTimeout(() => {
-        const funnelsList = queryClient.getQueryData<Funnel[]>(["/api/funnels"]);
-        if (funnelsList) {
-          saveToStorage(getStorageKey("/api/funnels"), funnelsList);
-        }
-      }, 100);
     },
     onError: (error: any) => {
       toast({
@@ -271,7 +247,7 @@ export default function FunnelBuilder() {
     link.download = `funil-pilotzap-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     URL.revokeObjectURL(url);
 
     toast({

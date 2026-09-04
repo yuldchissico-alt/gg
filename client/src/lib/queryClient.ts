@@ -1,6 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { getFromStorage, saveToStorage, getStorageKey } from "./localStorage";
-
+ 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -42,34 +41,18 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const url = queryKey.join("/") as string;
-    const storageKey = getStorageKey(url);
 
-    try {
-      const res = await fetch(url, {
-        credentials: "include",
-        cache: "no-store",
-      });
+    const res = await fetch(url, {
+      credentials: "include",
+      cache: "no-store",
+    });
 
-      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-        return null;
-      }
-
-      await throwIfResNotOk(res);
-      const data = await res.json();
-      
-      // Save successful response to localStorage
-      saveToStorage(storageKey, data);
-      
-      return data;
-    } catch (error) {
-      // If API fails, try to return cached data from localStorage
-      const cachedData = getFromStorage<T>(storageKey);
-      if (cachedData) {
-        console.warn(`Using cached data for ${url}:`, error);
-        return cachedData;
-      }
-      throw error;
+    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+      return null;
     }
+
+    await throwIfResNotOk(res);
+    return await res.json();
   };
 
 export const queryClient = new QueryClient({
@@ -77,9 +60,9 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
+      refetchOnWindowFocus: true,
+      staleTime: 5000,
+      retry: 1,
     },
     mutations: {
       retry: false,

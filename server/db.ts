@@ -1,9 +1,6 @@
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
+import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
 
 let pool: Pool | null = null;
 let db: any = null;
@@ -11,6 +8,14 @@ let db: any = null;
 function initializeDatabase() {
   if (db) return db;
   
+  if (!process.env.DATABASE_URL && typeof (process as any).loadEnvFile === 'function') {
+    try {
+      (process as any).loadEnvFile();
+    } catch {
+      // ignore
+    }
+  }
+
   const databaseUrl = process.env.DATABASE_URL;
   
   if (!databaseUrl) {
@@ -18,7 +23,10 @@ function initializeDatabase() {
     return null;
   }
   
-  pool = new Pool({ connectionString: databaseUrl });
+  pool = new Pool({
+    connectionString: databaseUrl,
+    ssl: { rejectUnauthorized: false }
+  });
   db = drizzle(pool, { schema });
   return db;
 }

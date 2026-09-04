@@ -48,16 +48,30 @@ function BlockedUserCheck({ children }: { children: React.ReactNode }) {
 
 function Router() {
   const [location, setLocation] = useLocation();
-  const isLoggedIn = localStorage.getItem("demo_logged_in") === "true";
+  const { data: user, isLoading } = useQuery<User>({
+    queryKey: ["/api/user/me"],
+    retry: false,
+  });
+
+  // Limpar qualquer dado residual do localStorage
+  useEffect(() => {
+    try {
+      localStorage.clear();
+    } catch (_) {}
+  }, []);
+
+  const isLoggedIn = !!user;
 
   useEffect(() => {
-    if (!isLoggedIn && location !== "/" && location !== "/login") {
-      setLocation("/login");
+    if (!isLoading) {
+      if (!isLoggedIn && location !== "/" && location !== "/login") {
+        setLocation("/login");
+      }
+      if (isLoggedIn && location === "/") {
+        setLocation("/dashboard");
+      }
     }
-    if (isLoggedIn && location === "/") {
-      setLocation("/dashboard");
-    }
-  }, [isLoggedIn, location, setLocation]);
+  }, [isLoggedIn, isLoading, location, setLocation]);
 
   return (
     <BlockedUserCheck>

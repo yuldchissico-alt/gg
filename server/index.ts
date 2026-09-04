@@ -1,3 +1,11 @@
+if (!process.env.DATABASE_URL && typeof (process as any).loadEnvFile === 'function') {
+  try {
+    (process as any).loadEnvFile();
+  } catch {
+    // ignore
+  }
+}
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";

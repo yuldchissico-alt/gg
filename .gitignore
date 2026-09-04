@@ -11,3 +11,5 @@ auth_info
 .env.local
 .env.*.local
 .dyad/
+.wwebjs_cache
+.wwebjs_auth

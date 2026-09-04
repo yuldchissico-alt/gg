@@ -9,6 +9,9 @@ import {
   insertFunnelSchema,
   insertContactSchema,
   insertMessageSchema,
+  insertCampaignSchema,
+  insertMessageTemplateSchema,
+  insertTagSchema,
 } from "@shared/schema";
 import { z } from "zod";
 import { readFileSync } from "fs";
@@ -42,22 +45,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User routes
   app.get('/api/user/me', async (req, res) => {
     try {
-      const user = await storage.getUser(DEFAULT_USER_ID);
+      let user = await storage.getUser(DEFAULT_USER_ID);
+      if (!user) {
+        user = await storage.getUserByEmail("yuldchissico11@gmail.com");
+      }
       
       if (!user) {
         res.json(DEMO_USER);
         return;
       }
 
-      await storage.checkPlanExpiration(DEFAULT_USER_ID);
-      const updatedUser = await storage.getUser(DEFAULT_USER_ID);
+      await storage.checkPlanExpiration(user.id);
+      const updatedUser = await storage.getUser(user.id);
 
       res.json({
         id: updatedUser?.id || DEMO_USER.id,
         firstName: updatedUser?.firstName || DEMO_USER.firstName,
         lastName: updatedUser?.lastName || DEMO_USER.lastName,
         email: updatedUser?.email || DEMO_USER.email,
-        planType: updatedUser?.planType || 'basic',
+        planType: updatedUser?.planType || 'pro',
         planExpiresAt: updatedUser?.planExpiresAt || null,
         isBlocked: updatedUser?.isBlocked || false
       });
@@ -68,6 +74,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error?.message || "Internal server error"
       });
     }
+  });
+
+  // Auth routes connected directly to PostgreSQL database
+  app.post('/api/auth/login', async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "E-mail é obrigatório" });
+      }
+
+      let user = await storage.getUserByEmail(email.toLowerCase().trim());
+      if (!user) {
+        // Obter ou criar usuário no banco
+        const namePart = email.split('@')[0];
+        const firstName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
+        user = await storage.upsertUser({
+          email: email.toLowerCase().trim(),
+          password: password || '123456',
+          firstName,
+          lastName: '',
+          planType: 'pro',
+        });
+      }
+
+      if (!user) {
+        return res.status(500).json({ message: "Não foi possível carregar o usuário" });
+      }
+
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          planType: user.planType,
+          isBlocked: user.isBlocked,
+        }
+      });
+    } catch (error: any) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Erro ao autenticar", error: error?.message });
+    }
+  });
+
+  app.post('/api/auth/logout', async (_req, res) => {
+    res.json({ success: true, message: "Logged out successfully" });
   });
 
   app.get('/api/whatsapp/status', async (req, res) => {
@@ -148,6 +201,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/whatsapp/connections - retorna lista de conexões com status real
+  app.get('/api/whatsapp/connections', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+
+      // Pega status em memória (mais confiável)
+      let status = await whatsappService.getConnectionStatus(userId);
+
+      // Se não estiver conectado em memória, verifica no banco de dados
+      if (!status.connected) {
+        const dbConn = await storage.getWhatsappConnection(userId);
+        if (dbConn && dbConn.isConnected) {
+          status = {
+            connected: true,
+            status: 'connected',
+            phoneNumber: dbConn.phoneNumber || undefined
+          };
+        }
+      }
+
+      if (!status.connected) {
+        // Sem conexão ativa - retorna lista vazia para mostrar card "Conecte um número"
+        return res.json([]);
+      }
+
+      // Retorna conexão ativa como array
+      const dbConn = await storage.getWhatsappConnection(userId);
+      res.json([{
+        id: dbConn?.id || userId,
+        isConnected: true,
+        phoneNumber: status.phoneNumber || dbConn?.phoneNumber || null,
+        name: dbConn?.name || null,
+        userId,
+      }]);
+    } catch (error) {
+      console.error("Error getting WhatsApp connections:", error);
+      res.status(500).json({ message: "Failed to get WhatsApp connections" });
+    }
+  });
+
   app.delete('/api/whatsapp/connections/:id', async (req, res) => {
     try {
       const { id } = req.params;
@@ -190,18 +283,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Procurar funis ativos
       const activeFunnels = await storage.getAllFunnels(userId);
-      console.log(`📋 Total de funis: ${activeFunnels.length}`);
+      console.log(`📋 Funis ativos encontrados: ${activeFunnels.length}`);
       
       activeFunnels.forEach((f) => {
         console.log(`   - Funil: ${f.name}, Status: ${f.status}, Gatilhos: ${f.triggerPhrases?.join(', ')}`);
       });
 
+      // Verificar se este contato tem execuções pausadas aguardando resposta
+      const waitingExecutions = await storage.getWaitingFunnelExecutions(contact.id);
+      if (waitingExecutions && waitingExecutions.length > 0) {
+        for (const waitingExec of waitingExecutions) {
+          console.log(`💬 [TESTE] Resposta recebida de ${phoneStr}. Retomando execução ${waitingExec.id}`);
+          await funnelService.resumeFunnelExecution(waitingExec.id, messageStr);
+        }
+        return res.json({ 
+          success: true, 
+          contact: contact.id,
+          resumedExecutions: waitingExecutions.length,
+          message: `Retomada ${waitingExecutions.length} execução(ões) aguardando resposta do cliente!`
+        });
+      }
+
       const triggeredFunnels = activeFunnels.filter(
         (f) =>
           f.status === 'active' &&
           f.triggerPhrases &&
-          f.triggerPhrases.some((phrase) =>
-            messageStr.toLowerCase().includes(phrase.toLowerCase())
+          (
+            f.triggerPhrases.some((p) => {
+              const trimmed = p.trim().toLowerCase();
+              return trimmed === '*' || trimmed === '__any__' || trimmed === 'qualquer mensagem' || trimmed === 'qualquer';
+            }) ||
+            f.triggerPhrases.some((phrase) =>
+              messageStr.toLowerCase().includes(phrase.toLowerCase())
+            )
           )
       );
 
@@ -282,14 +396,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`✅ [WEBHOOK] Novo contato criado: ${cleanPhone}`);
           }
 
+          // Verificar se este contato tem execuções pausadas aguardando resposta
+          const waitingExecutions = await storage.getWaitingFunnelExecutions(contact.id);
+          if (waitingExecutions && waitingExecutions.length > 0) {
+            for (const waitingExec of waitingExecutions) {
+              console.log(`💬 [WEBHOOK] Resposta recebida de ${cleanPhone}. Retomando execução ${waitingExec.id}`);
+              funnelService.resumeFunnelExecution(waitingExec.id, messageBody).catch(err => {
+                console.error(`❌ [WEBHOOK] Erro ao retomar execução ${waitingExec.id}:`, err);
+              });
+            }
+            return res.json({ success: true, resumed: true });
+          }
+
           // Procurar funis ativos
           const activeFunnels = await storage.getAllFunnels(userId);
           const triggeredFunnels = activeFunnels.filter(
             (f) =>
               f.status === 'active' &&
               f.triggerPhrases &&
-              f.triggerPhrases.some((phrase) =>
-                messageBody.toLowerCase().includes(phrase.toLowerCase())
+              (
+                f.triggerPhrases.some((p) => {
+                  const trimmed = p.trim().toLowerCase();
+                  return trimmed === '*' || trimmed === '__any__' || trimmed === 'qualquer mensagem' || trimmed === 'qualquer';
+                }) ||
+                f.triggerPhrases.some((phrase) =>
+                  messageBody.toLowerCase().includes(phrase.toLowerCase())
+                )
               )
           );
 
@@ -712,7 +844,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           content,
           userId,
           mediaUrl,
-          undefined,
+          req.body.mediaFileName,
           req.body.location
         );
 
@@ -1008,6 +1140,334 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error stopping funnel execution:", error);
       res.status(500).json({ message: "Failed to stop funnel execution" });
+    }
+  });
+
+  // ===== CAMPAIGN ROUTES (Disparos em Massa) =====
+  app.get('/api/campaigns', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const campaignsList = await storage.getAllCampaigns(userId);
+      res.json(campaignsList);
+    } catch (error) {
+      console.error("Error fetching campaigns:", error);
+      res.status(500).json({ message: "Failed to fetch campaigns" });
+    }
+  });
+
+  app.get('/api/campaigns/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const campaign = await storage.getCampaign(id);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      res.json(campaign);
+    } catch (error) {
+      console.error("Error fetching campaign:", error);
+      res.status(500).json({ message: "Failed to fetch campaign" });
+    }
+  });
+
+  app.post('/api/campaigns', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const campaignData = insertCampaignSchema.parse({ ...req.body, userId });
+      const campaign = await storage.createCampaign(campaignData);
+      await storage.createAuditLog({
+        userId,
+        action: 'campaign.created',
+        resourceType: 'campaign',
+        resourceId: campaign.id,
+        details: { name: campaign.name },
+      });
+      res.status(201).json(campaign);
+    } catch (error) {
+      console.error("Error creating campaign:", error);
+      res.status(500).json({ message: "Failed to create campaign" });
+    }
+  });
+
+  app.put('/api/campaigns/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const campaign = await storage.updateCampaign(id, req.body);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      res.json(campaign);
+    } catch (error) {
+      console.error("Error updating campaign:", error);
+      res.status(500).json({ message: "Failed to update campaign" });
+    }
+  });
+
+  app.delete('/api/campaigns/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteCampaign(id);
+      if (!success) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      await storage.createAuditLog({
+        userId: DEFAULT_USER_ID,
+        action: 'campaign.deleted',
+        resourceType: 'campaign',
+        resourceId: id,
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting campaign:", error);
+      res.status(500).json({ message: "Failed to delete campaign" });
+    }
+  });
+
+  // ===== TEMPLATE ROUTES =====
+  app.get('/api/templates', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const templatesList = await storage.getAllTemplates(userId);
+      res.json(templatesList);
+    } catch (error) {
+      console.error("Error fetching templates:", error);
+      res.status(500).json({ message: "Failed to fetch templates" });
+    }
+  });
+
+  app.get('/api/templates/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const template = await storage.getTemplate(id);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error fetching template:", error);
+      res.status(500).json({ message: "Failed to fetch template" });
+    }
+  });
+
+  app.post('/api/templates', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const templateData = insertMessageTemplateSchema.parse({ ...req.body, userId });
+      const template = await storage.createTemplate(templateData);
+      await storage.createAuditLog({
+        userId,
+        action: 'template.created',
+        resourceType: 'template',
+        resourceId: template.id,
+        details: { name: template.name },
+      });
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating template:", error);
+      res.status(500).json({ message: "Failed to create template" });
+    }
+  });
+
+  app.put('/api/templates/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const template = await storage.updateTemplate(id, req.body);
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      res.json(template);
+    } catch (error) {
+      console.error("Error updating template:", error);
+      res.status(500).json({ message: "Failed to update template" });
+    }
+  });
+
+  app.delete('/api/templates/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteTemplate(id);
+      if (!success) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      await storage.createAuditLog({
+        userId: DEFAULT_USER_ID,
+        action: 'template.deleted',
+        resourceType: 'template',
+        resourceId: id,
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting template:", error);
+      res.status(500).json({ message: "Failed to delete template" });
+    }
+  });
+
+  // ===== USER SETTINGS ROUTES =====
+  app.get('/api/user/settings', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      let settings = await storage.getUserSettings(userId);
+      if (!settings) {
+        settings = await storage.upsertUserSettings(userId, {});
+      }
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching user settings:", error);
+      res.status(500).json({ message: "Failed to fetch user settings" });
+    }
+  });
+
+  app.put('/api/user/settings', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const settings = await storage.upsertUserSettings(userId, req.body);
+      await storage.createAuditLog({
+        userId,
+        action: 'settings.updated',
+        resourceType: 'settings',
+        details: req.body,
+      });
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating user settings:", error);
+      res.status(500).json({ message: "Failed to update user settings" });
+    }
+  });
+
+  // ===== NOTIFICATION ROUTES =====
+  app.get('/api/notifications', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const notificationsList = await storage.getNotifications(userId, limit);
+      const unreadCount = await storage.getUnreadNotificationCount(userId);
+      res.json({ notifications: notificationsList, unreadCount });
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  app.put('/api/notifications/:id/read', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const notification = await storage.markNotificationRead(id);
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      res.json(notification);
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  app.put('/api/notifications/read-all', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      await storage.markAllNotificationsRead(userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+
+  // ===== CONVERSATION ROUTES =====
+  app.get('/api/conversations/:contactId', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const { contactId } = req.params;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const conversationMessagesList = await storage.getConversationMessages(contactId, userId, limit);
+      res.json(conversationMessagesList);
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+      res.status(500).json({ message: "Failed to fetch conversation" });
+    }
+  });
+
+  // ===== TAG ROUTES =====
+  app.get('/api/tags', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const tagsList = await storage.getAllTags(userId);
+      res.json(tagsList);
+    } catch (error) {
+      console.error("Error fetching tags:", error);
+      res.status(500).json({ message: "Failed to fetch tags" });
+    }
+  });
+
+  app.post('/api/tags', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const tagData = insertTagSchema.parse({ ...req.body, userId });
+      const tag = await storage.createTag(tagData);
+      res.status(201).json(tag);
+    } catch (error) {
+      console.error("Error creating tag:", error);
+      res.status(500).json({ message: "Failed to create tag" });
+    }
+  });
+
+  app.delete('/api/tags/:id', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const { id } = req.params;
+      const success = await storage.deleteTag(id, userId);
+      if (!success) {
+        return res.status(404).json({ message: "Tag not found" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting tag:", error);
+      res.status(500).json({ message: "Failed to delete tag" });
+    }
+  });
+
+  app.post('/api/contacts/:contactId/tags/:tagId', async (req, res) => {
+    try {
+      const { contactId, tagId } = req.params;
+      await storage.addContactTag(contactId, tagId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error adding contact tag:", error);
+      res.status(500).json({ message: "Failed to add contact tag" });
+    }
+  });
+
+  app.delete('/api/contacts/:contactId/tags/:tagId', async (req, res) => {
+    try {
+      const { contactId, tagId } = req.params;
+      await storage.removeContactTag(contactId, tagId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing contact tag:", error);
+      res.status(500).json({ message: "Failed to remove contact tag" });
+    }
+  });
+
+  app.get('/api/contacts/:contactId/tags', async (req, res) => {
+    try {
+      const { contactId } = req.params;
+      const contactTagsList = await storage.getContactTags(contactId);
+      res.json(contactTagsList);
+    } catch (error) {
+      console.error("Error fetching contact tags:", error);
+      res.status(500).json({ message: "Failed to fetch contact tags" });
+    }
+  });
+
+  // ===== AUDIT LOG ROUTES =====
+  app.get('/api/audit-logs', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const logs = await storage.getAuditLogs(userId, limit);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
     }
   });
 

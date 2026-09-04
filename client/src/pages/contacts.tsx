@@ -2,7 +2,6 @@ import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { saveToStorage, getStorageKey } from "@/lib/localStorage";
 import type { ContactsResponse } from "@shared/api-types";
 import Sidebar from "@/components/sidebar";
 import { Button } from "@/components/ui/button";
@@ -98,12 +97,7 @@ export default function Contacts() {
       const response = await apiRequest("POST", "/api/contacts", contactData);
       return response.json();
     },
-    onSuccess: (newContact) => {
-      // Save to localStorage
-      const contactsList = queryClient.getQueryData<ContactsResponse>(["/api/contacts"]) || { contacts: [] };
-      const updatedContacts = { ...contactsList, contacts: [...contactsList.contacts, newContact] };
-      saveToStorage(getStorageKey("/api/contacts"), updatedContacts);
-      
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/dashboard"] });
       toast({
@@ -129,15 +123,7 @@ export default function Contacts() {
       const response = await apiRequest("PUT", `/api/contacts/${id}`, data);
       return response.json();
     },
-    onSuccess: (updatedContact) => {
-      // Save to localStorage
-      const contactsList = queryClient.getQueryData<ContactsResponse>(["/api/contacts"]) || { contacts: [] };
-      const updatedContacts = {
-        ...contactsList,
-        contacts: contactsList.contacts.map(c => c.id === updatedContact.id ? updatedContact : c)
-      };
-      saveToStorage(getStorageKey("/api/contacts"), updatedContacts);
-      
+    onSuccess: () => {
       // Wait for invalidation to complete before closing
       queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/dashboard"] });
@@ -164,14 +150,6 @@ export default function Contacts() {
       await apiRequest("DELETE", `/api/contacts/${contactId}`);
     },
     onSuccess: (_, contactId) => {
-      // Save to localStorage
-      const contactsList = queryClient.getQueryData<ContactsResponse>(["/api/contacts"]) || { contacts: [] };
-      const updatedContacts = {
-        ...contactsList,
-        contacts: contactsList.contacts.filter(c => c.id !== contactId)
-      };
-      saveToStorage(getStorageKey("/api/contacts"), updatedContacts);
-      
       // Clear editing state if deleting the contact being edited
       if (editingContact?.id === contactId) {
         setEditingContact(null);
@@ -181,7 +159,7 @@ export default function Contacts() {
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/dashboard"] });
       toast({
         title: "Contato Excluído",
-        description: "O contato foi removido com sucesso!",
+        description: "Contato removido com sucesso!",
         duration: 2000,
       });
     },
@@ -196,11 +174,11 @@ export default function Contacts() {
   });
 
   const importMutation = useMutation({
-    mutationFn: async (contactsData: any[]) => {
-      const res = await apiRequest('POST', '/api/contacts/import', { contacts: contactsData });
-      return res.json();
+    mutationFn: async (contacts: any[]) => {
+      const response = await apiRequest("POST", "/api/contacts/bulk", { contacts });
+      return response.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data) => {
       toast({
         title: "Contatos importados!",
         description: `${data.imported} contato(s) importado(s) com sucesso.`,
@@ -208,14 +186,6 @@ export default function Contacts() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/analytics/dashboard"] });
-      
-      // Save to localStorage after invalidate
-      setTimeout(() => {
-        const contactsList = queryClient.getQueryData<ContactsResponse>(["/api/contacts"]);
-        if (contactsList) {
-          saveToStorage(getStorageKey("/api/contacts"), contactsList);
-        }
-      }, 100);
     },
     onError: (error: any) => {
       toast({
@@ -409,7 +379,7 @@ export default function Contacts() {
     link.download = `contatos-pilotzap-${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
     URL.revokeObjectURL(url);
 
     toast({

@@ -28,7 +28,6 @@ export interface DashboardAnalytics {
   deliveredMessages: number;
   totalMessages: number;
   weeklyData?: WeeklyDataPoint[];
-  // Comparison data
   yesterdayMessages: number;
   yesterdayDeliveryRate: number;
   yesterdaySentMessages: number;
@@ -64,7 +63,6 @@ export interface AnalyticsResponse {
   schedulerTasks: any[];
 }
 
-// Contact types for API responses
 export interface Contact {
   id: string;
   phoneNumber: string;
@@ -78,7 +76,6 @@ export interface Contact {
 
 export type ContactsResponse = Contact[];
 
-// Campaign types for API responses
 export interface Campaign {
   id: string;
   name: string;
@@ -92,7 +89,6 @@ export interface Campaign {
 
 export type CampaignsResponse = Campaign[];
 
-// Template types for API responses
 export interface MessageTemplate {
   id: string;
   name: string;
@@ -105,3 +101,62 @@ export interface MessageTemplate {
 }
 
 export type TemplatesResponse = MessageTemplate[];
+
+// New types for expanded schema
+
+export interface UserSettingsResponse {
+  id: string;
+  userId: string;
+  timezone: string;
+  notificationsEnabled: boolean;
+  autoReplyEnabled: boolean;
+  autoReplyMessage?: string;
+  businessHoursStart: string;
+  businessHoursEnd: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuditLogResponse {
+  id: string;
+  userId: string;
+  action: string;
+  resourceType?: string;
+  resourceId?: string;
+  details?: any;
+  ipAddress?: string;
+  createdAt: string;
+}
+
+export interface NotificationResponse {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  actionUrl?: string;
+  createdAt: string;
+}
+
+export interface ConversationMessageResponse {
+  id: string;
+  userId: string;
+  contactId: string;
+  direction: 'inbound' | 'outbound';
+  type: string;
+  content: string;
+  mediaUrl?: string;
+  externalId?: string;
+  status: string;
+  metadata?: any;
+  createdAt: string;
+}
+
+export interface TagResponse {
+  id: string;
+  userId: string;
+  name: string;
+  color: string;
+  createdAt: string;
+}

@@ -27,10 +27,10 @@ export default function Sidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { t } = useSettings();
 
-  const handleLogout = () => {
-    localStorage.removeItem("demo_logged_in");
-    localStorage.removeItem("demo_user_email");
-    localStorage.removeItem("demo_user_name");
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (_) {}
     window.location.href = "/login";
   };
 

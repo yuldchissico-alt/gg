@@ -39,10 +39,7 @@ export default function Settings() {
   const [displayPlan, setDisplayPlan] = useState("Plano Básico");
 
   useEffect(() => {
-    const storedEmail = localStorage.getItem("demo_user_email");
-    if (storedEmail) {
-      setDisplayEmail(storedEmail);
-    } else if (user?.email) {
+    if (user?.email) {
       setDisplayEmail(user.email);
     }
 

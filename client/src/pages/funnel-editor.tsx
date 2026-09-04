@@ -50,6 +50,7 @@ interface FunnelNode {
     delayMinutes?: number;
     delayValue?: number;
     delayUnit?: 'segundo' | 'minuto' | 'hora';
+    waitForReply?: boolean;
     nodeType?: string;
     icon?: string;
     location?: LocationData;
@@ -209,8 +210,22 @@ export default function FunnelEditor() {
   const updateNodeDelay = (delayValue: number, delayUnit: 'segundo' | 'minuto' | 'hora' = 'minuto') => {
     if (!selectedNode) return;
     
+    let delayMinutes = delayValue;
+    if (delayUnit === 'segundo') {
+      delayMinutes = delayValue / 60;
+    } else if (delayUnit === 'hora') {
+      delayMinutes = delayValue * 60;
+    }
+
     // Create updated data
-    const updatedData = { ...selectedNode.data, delayValue, delayUnit };
+    const updatedData = { 
+      ...selectedNode.data, 
+      delayValue, 
+      delayUnit, 
+      delayMinutes, 
+      content: `Aguardar ${delayValue} ${delayUnit}(s)`,
+      waitForReply: false 
+    };
     
     const updatedNodes = funnelData.nodes.map(node => 
       node.id === selectedNode.id 
@@ -218,6 +233,32 @@ export default function FunnelEditor() {
         : node
     );
     
+    setFunnelData({ ...funnelData, nodes: updatedNodes });
+    setSelectedNode({ ...selectedNode, data: updatedData });
+  };
+
+  const updateNodeDelayMode = (waitForReply: boolean) => {
+    if (!selectedNode) return;
+
+    const delayVal = selectedNode.data.delayValue || 5;
+    const delayU = selectedNode.data.delayUnit || 'minuto';
+
+    const content = waitForReply
+      ? 'Aguardar resposta do cliente'
+      : `Aguardar ${delayVal} ${delayU}(s)`;
+
+    const updatedData = {
+      ...selectedNode.data,
+      waitForReply,
+      content,
+    };
+
+    const updatedNodes = funnelData.nodes.map(node =>
+      node.id === selectedNode.id
+        ? { ...node, data: updatedData }
+        : node
+    );
+
     setFunnelData({ ...funnelData, nodes: updatedNodes });
     setSelectedNode({ ...selectedNode, data: updatedData });
   };
@@ -309,18 +350,7 @@ export default function FunnelEditor() {
       return;
     }
 
-    // For video files, just store the file name to avoid freezing
-    if (nodeType === 'video') {
-      updateNodeMediaUrl(`video:${file.name}`, file.name);
-      toast({
-        title: "✅ Vídeo Adicionado",
-        description: `${file.name} foi anexado ao nó`,
-        duration: 2000,
-      });
-      return;
-    }
-
-    // For other files (audio, document, image), read as data URL
+    // For all files (image, video, audio, document), read as data URL
     const reader = new FileReader();
     reader.onloadend = () => {
       const dataUrl = reader.result as string;
@@ -329,7 +359,8 @@ export default function FunnelEditor() {
       const mediaTypeNames: Record<string, string> = {
         document: 'Documento',
         audio: 'Áudio',
-        image: 'Imagem'
+        image: 'Imagem',
+        video: 'Vídeo'
       };
       const mediaTypeName = nodeType && mediaTypeNames[nodeType] ? mediaTypeNames[nodeType] : 'Arquivo';
       
@@ -366,7 +397,7 @@ export default function FunnelEditor() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Header */}
-        <header className="bg-card border-b border-border px-3 sm:px-6 py-3 sm:py-4">
+        <header className="bg-black border-b border-[#333] px-3 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 sm:space-x-4">
               <Button
@@ -439,7 +470,7 @@ export default function FunnelEditor() {
                     draggable
                     onDragStart={(e) => onDragStart(e, 'message')}
                   >
-                    <MessageSquare className="h-6 w-6 text-foreground mb-1.5 flex-shrink-0 drop-shadow-lg" />
+                    <MessageSquare className="h-6 w-6 text-white mb-1.5 flex-shrink-0 drop-shadow-lg" />
                     <p className="text-xs font-semibold text-gray-200 text-center truncate w-full">Texto</p>
                   </div>
                   <div 
@@ -448,7 +479,7 @@ export default function FunnelEditor() {
                     draggable
                     onDragStart={(e) => onDragStart(e, 'image')}
                   >
-                    <Image className="h-6 w-6 text-foreground mb-1.5 flex-shrink-0 drop-shadow-lg" />
+                    <Image className="h-6 w-6 text-white mb-1.5 flex-shrink-0 drop-shadow-lg" />
                     <p className="text-xs font-semibold text-gray-200 text-center truncate w-full">Imagem</p>
                   </div>
                   <div 
@@ -457,7 +488,7 @@ export default function FunnelEditor() {
                     draggable
                     onDragStart={(e) => onDragStart(e, 'video')}
                   >
-                    <Video className="h-6 w-6 text-foreground mb-1.5 flex-shrink-0 drop-shadow-lg" />
+                    <Video className="h-6 w-6 text-white mb-1.5 flex-shrink-0 drop-shadow-lg" />
                     <p className="text-xs font-semibold text-gray-200 text-center truncate w-full">Vídeo</p>
                   </div>
                   <div 
@@ -466,7 +497,7 @@ export default function FunnelEditor() {
                     draggable
                     onDragStart={(e) => onDragStart(e, 'audio')}
                   >
-                    <Mic className="h-6 w-6 text-foreground mb-1.5 flex-shrink-0 drop-shadow-lg" />
+                    <Mic className="h-6 w-6 text-white mb-1.5 flex-shrink-0 drop-shadow-lg" />
                     <p className="text-xs font-semibold text-gray-200 text-center truncate w-full">Audio</p>
                   </div>
                   <div 
@@ -475,7 +506,7 @@ export default function FunnelEditor() {
                     draggable
                     onDragStart={(e) => onDragStart(e, 'location')}
                   >
-                    <MapPin className="h-6 w-6 text-foreground mb-1.5 flex-shrink-0 drop-shadow-lg" />
+                    <MapPin className="h-6 w-6 text-white mb-1.5 flex-shrink-0 drop-shadow-lg" />
                     <p className="text-xs font-semibold text-gray-200 text-center truncate w-full">Local</p>
                   </div>
                   
@@ -485,7 +516,7 @@ export default function FunnelEditor() {
                     draggable
                     onDragStart={(e) => onDragStart(e, 'document')}
                   >
-                    <FileText className="h-6 w-6 text-foreground mb-1.5 flex-shrink-0 drop-shadow-lg" />
+                    <FileText className="h-6 w-6 text-white mb-1.5 flex-shrink-0 drop-shadow-lg" />
                     <p className="text-xs font-semibold text-gray-200 text-center truncate w-full">Doc</p>
                   </div>
                 </div>
@@ -501,7 +532,7 @@ export default function FunnelEditor() {
                     draggable
                     onDragStart={(e) => onDragStart(e, 'condition')}
                   >
-                    <GitBranch className="h-4 w-4 text-foreground mr-2.5 flex-shrink-0 drop-shadow-lg" />
+                    <GitBranch className="h-4 w-4 text-white mr-2.5 flex-shrink-0 drop-shadow-lg" />
                     <span className="text-sm font-semibold text-gray-200 hidden md:inline">Condição</span>
                   </div>
                   <div 
@@ -510,7 +541,7 @@ export default function FunnelEditor() {
                     draggable
                     onDragStart={(e) => onDragStart(e, 'delay')}
                   >
-                    <Clock className="h-4 w-4 text-foreground mr-2.5 flex-shrink-0 drop-shadow-lg" />
+                    <Clock className="h-4 w-4 text-white mr-2.5 flex-shrink-0 drop-shadow-lg" />
                     <span className="text-sm font-semibold text-gray-200 hidden md:inline">Esperar</span>
                   </div>
                   <div 
@@ -519,7 +550,7 @@ export default function FunnelEditor() {
                     draggable
                     onDragStart={(e) => onDragStart(e, 'question')}
                   >
-                    <HelpCircle className="h-4 w-4 text-foreground mr-2.5 flex-shrink-0 drop-shadow-lg" />
+                    <HelpCircle className="h-4 w-4 text-white mr-2.5 flex-shrink-0 drop-shadow-lg" />
                     <span className="text-sm font-semibold text-gray-200 hidden md:inline">Pergunta</span>
                   </div>
                   <div 
@@ -528,7 +559,7 @@ export default function FunnelEditor() {
                     draggable
                     onDragStart={(e) => onDragStart(e, 'tag')}
                   >
-                    <Tag className="h-4 w-4 text-foreground mr-2.5 flex-shrink-0 drop-shadow-lg" />
+                    <Tag className="h-4 w-4 text-white mr-2.5 flex-shrink-0 drop-shadow-lg" />
                     <span className="text-sm font-semibold text-gray-200 hidden md:inline">Tag</span>
                   </div>
                   <div 
@@ -537,7 +568,7 @@ export default function FunnelEditor() {
                     draggable
                     onDragStart={(e) => onDragStart(e, 'verify')}
                   >
-                    <CheckCircle className="h-4 w-4 text-foreground mr-2.5 flex-shrink-0 drop-shadow-lg" />
+                    <CheckCircle className="h-4 w-4 text-white mr-2.5 flex-shrink-0 drop-shadow-lg" />
                     <span className="text-sm font-semibold text-gray-200 hidden md:inline">Verificar</span>
                   </div>
                 </div>
@@ -702,7 +733,7 @@ export default function FunnelEditor() {
                                       link.target = '_blank';
                                       document.body.appendChild(link);
                                       link.click();
-                                      document.body.removeChild(link);
+                                      link.remove();
                                     }
                                   }}
                                   data-testid="button-open-document"
@@ -731,33 +762,79 @@ export default function FunnelEditor() {
 
                 {/* Delay Node */}
                 {selectedNode.data.nodeType === 'delay' && (
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <div>
-                      <Label htmlFor="delay-value" className="text-gray-300">
-                        Tempo de espera
-                      </Label>
-                      <div className="flex gap-2 mt-2">
-                        <Input
-                          id="delay-value"
-                          type="number"
-                          min="1"
-                          value={selectedNode.data.delayValue || 5}
-                          onChange={(e) => updateNodeDelay(parseInt(e.target.value) || 5, selectedNode.data.delayUnit || 'minuto')}
-                          className="flex-1 bg-[#1a1a1a] border-gray-700 text-white"
-                          data-testid="input-delay-value"
-                        />
-                        <Select value={selectedNode.data.delayUnit || 'minuto'} onValueChange={(value: any) => updateNodeDelay(selectedNode.data.delayValue || 5, value)}>
-                          <SelectTrigger className="w-40 bg-[#1a1a1a] border-gray-700 text-white" data-testid="select-delay-unit">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="segundo">Segundo(s)</SelectItem>
-                            <SelectItem value="minuto">Minuto(s)</SelectItem>
-                            <SelectItem value="hora">Hora(s)</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <Label className="text-gray-300 font-medium text-sm">Modo de espera</Label>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => updateNodeDelayMode(false)}
+                          className={`p-3 rounded-lg border text-left transition-all text-xs ${
+                            !selectedNode.data.waitForReply
+                              ? 'border-green-500 bg-green-500/10 text-white'
+                              : 'border-gray-800 bg-[#141414] text-gray-400 hover:border-gray-700'
+                          }`}
+                        >
+                          <div className="font-semibold flex items-center gap-1.5 mb-1 text-white">
+                            <Clock className="w-3.5 h-3.5 text-green-400" />
+                            Tempo
+                          </div>
+                          <span className="text-[11px] text-gray-400">Aguardar intervalo</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => updateNodeDelayMode(true)}
+                          className={`p-3 rounded-lg border text-left transition-all text-xs ${
+                            selectedNode.data.waitForReply
+                              ? 'border-green-500 bg-green-500/10 text-white'
+                              : 'border-gray-800 bg-[#141414] text-gray-400 hover:border-gray-700'
+                          }`}
+                        >
+                          <div className="font-semibold flex items-center gap-1.5 mb-1 text-white">
+                            <MessageSquare className="w-3.5 h-3.5 text-blue-400" />
+                            Resposta
+                          </div>
+                          <span className="text-[11px] text-gray-400">Esperar resposta</span>
+                        </button>
                       </div>
                     </div>
+
+                    {!selectedNode.data.waitForReply ? (
+                      <div>
+                        <Label htmlFor="delay-value" className="text-gray-300">
+                          Tempo de espera
+                        </Label>
+                        <div className="flex gap-2 mt-2">
+                          <Input
+                            id="delay-value"
+                            type="number"
+                            min="1"
+                            value={selectedNode.data.delayValue || 5}
+                            onChange={(e) => updateNodeDelay(parseInt(e.target.value) || 1, selectedNode.data.delayUnit || 'minuto')}
+                            className="flex-1 bg-[#1a1a1a] border-gray-700 text-white"
+                            data-testid="input-delay-value"
+                          />
+                          <Select value={selectedNode.data.delayUnit || 'minuto'} onValueChange={(value: any) => updateNodeDelay(selectedNode.data.delayValue || 5, value)}>
+                            <SelectTrigger className="w-40 bg-[#1a1a1a] border-gray-700 text-white" data-testid="select-delay-unit">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="segundo">Segundo(s)</SelectItem>
+                              <SelectItem value="minuto">Minuto(s)</SelectItem>
+                              <SelectItem value="hora">Hora(s)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3 bg-blue-950/20 border border-blue-800/40 rounded-lg text-xs text-blue-300 flex items-start gap-2">
+                        <MessageSquare className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                        <span>
+                          O funil será pausado aqui e continuará automaticamente enviando a próxima mensagem assim que o cliente responder.
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -821,41 +898,117 @@ export default function FunnelEditor() {
                   </div>
                 )}
 
-                {/* Trigger Node - Single Phrase */}
-                {selectedNode.data.nodeType === 'trigger' && (
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-gray-300">
-                        Frase Gatilho
-                      </Label>
-                      <p className="text-xs text-gray-500 mt-1 mb-3">
-                        Palavra ou frase que inicia o funil
-                      </p>
-                      <div className="flex gap-2">
-                        <Input
-                          value={triggerPhrases[0] || ''}
-                          onChange={(e) => {
-                            setTriggerPhrases([e.target.value]);
-                          }}
-                          placeholder="Digite a frase gatilho..."
-                          className="bg-[#1a1a1a] border-gray-700 text-white flex-1"
-                          data-testid="input-trigger-phrase"
-                        />
-                        {triggerPhrases[0] && (
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setTriggerPhrases([])}
-                            className="border-gray-600 text-gray-300 hover:bg-red-900"
-                            data-testid="button-clear-trigger-phrase"
+                {/* Trigger Node - Configuração de Gatilho */}
+                {selectedNode.data.nodeType === 'trigger' && (() => {
+                  const isAnyMessage = triggerPhrases.length > 0 && (
+                    triggerPhrases[0] === '*' ||
+                    triggerPhrases.some(p => p.trim() === '*' || p.trim().toLowerCase() === '__any__' || p.trim().toLowerCase() === 'qualquer mensagem')
+                  );
+
+                  return (
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-gray-300 text-sm font-semibold">
+                          Tipo de Gatilho
+                        </Label>
+                        <p className="text-xs text-gray-500 mt-0.5 mb-3">
+                          Escolha quando este funil deve ser iniciado
+                        </p>
+
+                        <div className="space-y-2">
+                          {/* Opção 1: Frase específica */}
+                          <div 
+                            onClick={() => {
+                              if (isAnyMessage) {
+                                setTriggerPhrases(['']);
+                              }
+                            }}
+                            className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start gap-3 ${
+                              !isAnyMessage
+                                ? 'bg-primary/15 border-primary text-white shadow-sm'
+                                : 'bg-[#1a1a1a] border-gray-700 text-gray-400 hover:border-gray-600'
+                            }`}
                           >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
+                            <div className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${
+                              !isAnyMessage ? 'border-primary' : 'border-gray-600'
+                            }`}>
+                              {!isAnyMessage && <div className="h-2 w-2 rounded-full bg-primary" />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-white">Frase específica</p>
+                              <p className="text-xs text-gray-400 mt-0.5">Dispara quando o contato enviar uma palavra ou frase exata</p>
+                            </div>
+                          </div>
+
+                          {/* Opção 2: Qualquer mensagem */}
+                          <div 
+                            onClick={() => {
+                              setTriggerPhrases(['*']);
+                            }}
+                            className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start gap-3 ${
+                              isAnyMessage
+                                ? 'bg-primary/15 border-primary text-white shadow-sm'
+                                : 'bg-[#1a1a1a] border-gray-700 text-gray-400 hover:border-gray-600'
+                            }`}
+                          >
+                            <div className={`mt-0.5 h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${
+                              isAnyMessage ? 'border-primary' : 'border-gray-600'
+                            }`}>
+                              {isAnyMessage && <div className="h-2 w-2 rounded-full bg-primary" />}
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-white">Qualquer mensagem</p>
+                              <p className="text-xs text-gray-400 mt-0.5">Dispara automaticamente para qualquer mensagem recebida</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
+
+                      {!isAnyMessage ? (
+                        <div className="pt-2 border-t border-gray-800">
+                          <Label className="text-gray-300 text-xs font-medium">
+                            Palavra ou frase gatilho
+                          </Label>
+                          <div className="flex gap-2 mt-1.5">
+                            <Input
+                              value={triggerPhrases[0] === '*' ? '' : (triggerPhrases[0] || '')}
+                              onChange={(e) => {
+                                setTriggerPhrases([e.target.value]);
+                              }}
+                              placeholder="Digite a frase gatilho (ex: oi)..."
+                              className="bg-[#1a1a1a] border-gray-700 text-white flex-1"
+                              data-testid="input-trigger-phrase"
+                            />
+                            {triggerPhrases[0] && triggerPhrases[0] !== '*' && (
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setTriggerPhrases([])}
+                                className="border-gray-600 text-gray-300 hover:bg-red-900"
+                                data-testid="button-clear-trigger-phrase"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-gray-500 mt-1.5">
+                            Palavra ou frase que inicia o funil quando digitada pelo cliente.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-emerald-950/30 border border-emerald-800/40 rounded-lg">
+                          <p className="text-xs text-emerald-400 font-medium flex items-center gap-1.5">
+                            <CheckCircle className="h-4 w-4 shrink-0 text-emerald-400" />
+                            Qualquer Mensagem Ativada
+                          </p>
+                          <p className="text-[11px] text-gray-300 mt-1">
+                            Este funil responderá a qualquer primeira mensagem recebida do contato.
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* Verify Node */}
                 {selectedNode.data.nodeType === 'verify' && (

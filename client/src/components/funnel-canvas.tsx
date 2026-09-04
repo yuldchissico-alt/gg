@@ -90,9 +90,16 @@ function FunnelCanvasInner({ data, onDataChange, onNodeSelect }: FunnelCanvasPro
     if (data.nodes.length === 0) {
       if (initializedRef.current) return;
       
-      const phrasesText = data.triggerPhrases && data.triggerPhrases.length > 0
-        ? data.triggerPhrases.filter(p => p.trim()).map(p => `"${p}"`).join(', ')
-        : null;
+      const isAnyMessage = data.triggerPhrases && (
+        data.triggerPhrases.includes('*') ||
+        data.triggerPhrases.some(p => p.trim() === '*' || p.trim().toLowerCase() === '__any__' || p.trim().toLowerCase() === 'qualquer mensagem')
+      );
+
+      const phrasesText = isAnyMessage
+        ? 'Qualquer mensagem'
+        : (data.triggerPhrases && data.triggerPhrases.length > 0
+          ? data.triggerPhrases.filter(p => p.trim()).map(p => `"${p}"`).join(', ')
+          : null);
       
       const initialNodes: Node[] = [
         {
@@ -153,9 +160,16 @@ function FunnelCanvasInner({ data, onDataChange, onNodeSelect }: FunnelCanvasPro
   }, [data.nodes, data.edges, data.triggerPhrases, setNodes, setEdges]);
 
   React.useEffect(() => {
-    const phrasesText = data.triggerPhrases && data.triggerPhrases.length > 0
-      ? data.triggerPhrases.filter(p => p.trim()).map(p => `"${p}"`).join(', ')
-      : null;
+    const isAnyMessage = data.triggerPhrases && (
+      data.triggerPhrases.includes('*') ||
+      data.triggerPhrases.some(p => p.trim() === '*' || p.trim().toLowerCase() === '__any__' || p.trim().toLowerCase() === 'qualquer mensagem')
+    );
+
+    const phrasesText = isAnyMessage
+      ? 'Qualquer mensagem'
+      : (data.triggerPhrases && data.triggerPhrases.length > 0
+        ? data.triggerPhrases.filter(p => p.trim()).map(p => `"${p}"`).join(', ')
+        : null);
     
     setNodes(currentNodes => {
       return currentNodes.map(node => {
@@ -264,6 +278,7 @@ function FunnelCanvasInner({ data, onDataChange, onNodeSelect }: FunnelCanvasPro
         delayMinutes: nodeType === 'delay' ? 5 : 0,
         delayValue: nodeType === 'delay' ? 5 : undefined,
         delayUnit: nodeType === 'delay' ? 'minuto' : undefined,
+        waitForReply: false,
       };
       nodeData.label = getNodeLabel(nodeType, nodeData);
 
