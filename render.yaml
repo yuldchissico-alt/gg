@@ -1,15 +1,22 @@
-services:
+﻿services:
   - type: web
-    name: zapfast
-    runtime: node
-    buildCommand: pnpm install --frozen-lockfile && pnpm run build
-    startCommand: pnpm run start
+    name: pilotzap
+    env: docker
+    plan: starter
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /api/whatsapp/status
     envVars:
+      - key: DATABASE_URL
+        sync: false
       - key: NODE_ENV
         value: production
-      - key: PORT
-        sync: false
+      - key: WHATSAPP_HEADLESS
+        value: "true"
+      - key: WHATSAPP_CHROME_PATH
+        value: "/usr/bin/chromium"
     disk:
-      name: whatsapp_data
-      mountPath: /opt/render/project/src/auth_info
+      name: pilotzap-wwebjs-data
+      mountPath: /app/auth_info
       sizeGB: 1

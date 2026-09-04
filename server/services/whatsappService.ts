@@ -122,7 +122,22 @@ export class WhatsAppService {
 
     this.connectionStatuses.set(userId, { connected: false, status: "initializing" });
 
-    const chromePath = process.env.WHATSAPP_CHROME_PATH?.trim();
+    let chromePath = process.env.WHATSAPP_CHROME_PATH?.trim();
+    if (!chromePath && process.platform === "linux") {
+      const candidates = [
+        "/usr/bin/chromium",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome-stable",
+        "/usr/bin/google-chrome",
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          chromePath = p;
+          break;
+        }
+      }
+    }
+
     const headless = (process.env.WHATSAPP_HEADLESS ?? "true").toLowerCase() !== "false";
 
     const client = new WAWebJS.Client({
@@ -133,6 +148,15 @@ export class WhatsAppService {
       puppeteer: {
         headless,
         ...(chromePath ? { executablePath: chromePath } : {}),
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-accelerated-2d-canvas",
+          "--no-first-run",
+          "--no-zygote",
+          "--disable-gpu",
+        ],
       },
     });
 
