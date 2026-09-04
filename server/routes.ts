@@ -93,7 +93,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (cleanEmail !== 'yuldchissico11@gmail.com' || cleanPassword !== 'yuld0000') {
         return res.status(401).json({ 
           success: false, 
-          message: "Credenciais inválidas. Apenas o usuário yuldchissico11@gmail.com é autorizado." 
+          message: "E-mail ou senha incorretos." 
         });
       }
 
