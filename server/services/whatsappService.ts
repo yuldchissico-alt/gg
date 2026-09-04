@@ -14,6 +14,22 @@ interface WhatsAppConnection {
   error?: string;
 }
 
+// ── Anti-ban: contagem de mensagens por usuário ─────────────────────────────
+interface AntiBanState {
+  /** timestamps (ms) dos últimos envios para limitar rate */
+  timestamps: number[];
+  /** fila serial — cada envio aguarda o anterior terminar */
+  sendQueue: Promise<void>;
+}
+
+const MAX_MSGS_PER_HOUR = 80; // máximo de mensagens por hora
+
+/** Retorna um delay aleatório entre min e max (ms) */
+function randomDelay(minMs: number, maxMs: number): Promise<void> {
+  const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 export class WhatsAppService {
   private clients: Map<string, WAWebJS.Client> = new Map();
   private initPromises: Map<string, Promise<void>> = new Map();
@@ -23,6 +39,8 @@ export class WhatsAppService {
     string,
     { resolve: (qrCode: string) => void; reject: (err: Error) => void }
   > = new Map();
+  /** Anti-ban state por userId */
+  private antiBan: Map<string, AntiBanState> = new Map();
 
   constructor() {
     console.log("🚀 WhatsAppService (whatsapp-web.js) inicializado");
@@ -431,6 +449,39 @@ export class WhatsAppService {
     });
   }
 
+  // ── Anti-ban helpers ────────────────────────────────────────────────────────
+
+  /** Retorna (criando se necessário) o estado anti-ban para um userId */
+  private getAntiBanState(userId: string): AntiBanState {
+    if (!this.antiBan.has(userId)) {
+      this.antiBan.set(userId, {
+        timestamps: [],
+        sendQueue: Promise.resolve(),
+      });
+    }
+    return this.antiBan.get(userId)!;
+  }
+
+  /**
+   * Verifica se o rate limit foi atingido.
+   * Remove timestamps com mais de 1 hora e verifica se já enviamos MAX_MSGS_PER_HOUR.
+   */
+  private checkRateLimit(state: AntiBanState): boolean {
+    const now = Date.now();
+    const oneHourAgo = now - 60 * 60 * 1000;
+    state.timestamps = state.timestamps.filter((t) => t > oneHourAgo);
+    return state.timestamps.length < MAX_MSGS_PER_HOUR;
+  }
+
+  /**
+   * Registra um envio no contador de rate limit.
+   */
+  private recordSend(state: AntiBanState): void {
+    state.timestamps.push(Date.now());
+  }
+
+  // ── sendMessage público (com fila serial anti-ban) ──────────────────────────
+
   async sendMessage(
     phoneNumber: string,
     message: string,
@@ -439,6 +490,28 @@ export class WhatsAppService {
     mediaFileName?: string,
     location?: { latitude: number; longitude: number; address: string },
     _quoted?: any,
+  ): Promise<boolean> {
+    const state = this.getAntiBanState(userId);
+
+    // Encadeia na fila serial para este usuário (sem envios paralelos)
+    const result = state.sendQueue.then(() =>
+      this._sendMessageCore(phoneNumber, message, userId, mediaUrl, mediaFileName, location, _quoted, state),
+    );
+    // Atualiza a fila ignorando erros para não travar
+    state.sendQueue = result.then(() => {}, () => {});
+
+    return result;
+  }
+
+  private async _sendMessageCore(
+    phoneNumber: string,
+    message: string,
+    userId: string,
+    mediaUrl?: string,
+    mediaFileName?: string,
+    location?: { latitude: number; longitude: number; address: string },
+    _quoted?: any,
+    state?: AntiBanState,
   ): Promise<boolean> {
     try {
       await this.ensureClient(userId);
@@ -455,6 +528,19 @@ export class WhatsAppService {
         return false;
       }
 
+      // ── Proteção Anti-Ban: verificação de limite por hora ──
+      if (state && !this.checkRateLimit(state)) {
+        console.warn(`🛡️ [ANTI-BAN] Limite de ${MAX_MSGS_PER_HOUR} msgs/hora atingido para ${userId}. Pausa preventiva de segurança...`);
+        await randomDelay(12000, 20000);
+      }
+
+      // ── Proteção Anti-Ban: delay humano aleatório entre envios consecutivos ──
+      if (state && state.timestamps.length > 0) {
+        const antiBanDelay = Math.floor(Math.random() * (6000 - 3000 + 1)) + 3000;
+        console.log(`🛡️ [ANTI-BAN] Intervalo humano de proteção anti-bloqueio: ${(antiBanDelay / 1000).toFixed(1)}s`);
+        await new Promise((resolve) => setTimeout(resolve, antiBanDelay));
+      }
+
       let chatId = phoneNumber.trim();
       if (!chatId.includes("@")) {
         // Se número tem 9 dígitos (formato local Moçambique), adiciona prefixo 258
@@ -462,11 +548,12 @@ export class WhatsAppService {
         chatId = `${fullPhone}@c.us`;
       }
 
+      // ── Simulação de presença e digitação realista antes de enviar ──
       try {
         const chat = await client.getChatById(chatId);
         await chat.sendStateTyping();
-        const delay = Math.min(Math.max((message || "").length * 50, 500), 2000);
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        const typingDelay = Math.min(Math.max((message || "").length * 40, 1500), 4000);
+        await new Promise((resolve) => setTimeout(resolve, typingDelay));
         await chat.clearState();
       } catch {
         // ignore
@@ -477,6 +564,7 @@ export class WhatsAppService {
           chatId,
           new WAWebJS.Location(location.latitude, location.longitude, { address: location.address }),
         );
+        if (state) this.recordSend(state);
         return true;
       }
 
@@ -562,6 +650,7 @@ export class WhatsAppService {
           }
 
           console.log(`✅ [WHATSAPP] Mídia enviada com sucesso para ${chatId} (${media.mimetype}, nome: ${filename || 'mídia'})`);
+          if (state) this.recordSend(state);
           return true;
         } catch (mediaError: any) {
           console.error(`❌ Erro ao enviar mídia para ${phoneNumber}:`, mediaError?.message || mediaError);
@@ -573,6 +662,7 @@ export class WhatsAppService {
       try {
         await client.sendMessage(chatId, message);
         console.log(`✅ [WHATSAPP] Mensagem enviada com sucesso para ${chatId}`);
+        if (state) this.recordSend(state);
         return true;
       } catch (sendError: any) {
         // Fallback: se o envio falhou com @c.us mas tínhamos um ID longo (possível @lid) ou vice-versa
@@ -582,6 +672,7 @@ export class WhatsAppService {
             console.log(`🔄 [WHATSAPP] Tentando fallback para ${lidChat}...`);
             await client.sendMessage(lidChat, message);
             console.log(`✅ [WHATSAPP] Mensagem enviada via fallback LID para ${lidChat}`);
+            if (state) this.recordSend(state);
             return true;
           } catch {}
         }
@@ -629,8 +720,18 @@ export class WhatsAppService {
     }
   }
 
-  async getAntiBanStats() {
-    return { messagesThisHour: 0, maxPerHour: 100, queueSize: 0 };
+  async getAntiBanStats(userId: string = "default-user") {
+    const state = this.antiBan.get(userId);
+    const now = Date.now();
+    const oneHourAgo = now - 60 * 60 * 1000;
+    const count = state ? state.timestamps.filter((t) => t > oneHourAgo).length : 0;
+    return {
+      messagesThisHour: count,
+      maxPerHour: MAX_MSGS_PER_HOUR,
+      antiBanActive: true,
+      safeDelayRange: "3s - 6s",
+      typingSimulation: true,
+    };
   }
 }
 

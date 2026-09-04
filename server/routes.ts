@@ -175,6 +175,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/whatsapp/antiban', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const stats = await whatsappService.getAntiBanStats(userId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error getting anti-ban stats:", error);
+      res.status(500).json({ message: "Failed to get anti-ban stats" });
+    }
+  });
+
   app.post('/api/whatsapp/qr', async (req, res) => {
     try {
       const userId = DEFAULT_USER_ID;
