@@ -78,9 +78,49 @@ app.use((req, res, next) => {
     reusePort: process.platform !== 'win32',
   }, () => {
     log(`serving on http://localhost:${port}`);
-    // Inicializar verificação de status e webhook ao iniciar o servidor
+    // Inicializar WhatsApp em background sem bloquear o startup do servidor
     import("./services/whatsappService").then(({ whatsappService }) => {
-      whatsappService.getConnectionStatus("default-user").catch(console.error);
+      whatsappService.getConnectionStatus("default-user").then(async (status) => {
+        if (status.connected) {
+          log("✅ WhatsApp já conectado (sessão salva)");
+        } else {
+          // Tenta inicializar o cliente em background para acelerar a primeira conexão
+          // (não aguarda — não bloqueia o servidor)
+          whatsappService.getQRCode("default-user").catch(() => {
+            // Silencioso — pode falhar se não houver sessão, é esperado
+          });
+        }
+      }).catch(console.error);
     });
   });
+
+  // ── Graceful shutdown: fecha DB pool e Chromium antes de sair ─────────────
+  const shutdown = async (signal: string) => {
+    log(`🛑 ${signal} recebido — encerrando graciosamente...`);
+
+    server.close(async () => {
+      try {
+        const { whatsappService } = await import("./services/whatsappService");
+        await whatsappService.destroy();
+      } catch { /* ignore */ }
+
+      try {
+        const { getPool } = await import("./db");
+        const pool = getPool();
+        if (pool) await pool.end();
+        log("✅ Pool do banco de dados encerrado.");
+      } catch { /* ignore */ }
+
+      process.exit(0);
+    });
+
+    // Forçar saída se demorar mais de 15s
+    setTimeout(() => {
+      log("⚠️ Graceful shutdown excedeu 15s — forçando saída.");
+      process.exit(1);
+    }, 15_000).unref();
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT",  () => shutdown("SIGINT"));
 })();

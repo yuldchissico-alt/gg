@@ -25,8 +25,21 @@ function initializeDatabase() {
   
   pool = new Pool({
     connectionString: databaseUrl,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    // Pool tuning para estabilidade no Render
+    max: 5,                        // Máximo de conexões simultâneas (Neon free tem limite baixo)
+    min: 1,                        // Mantém 1 conexão mínima sempre viva
+    idleTimeoutMillis: 30_000,     // Fecha conexões ociosas após 30s (Neon fecha em ~5min)
+    connectionTimeoutMillis: 10_000, // Timeout de 10s ao tentar conectar
+    keepAlive: true,               // TCP keep-alive para evitar que o firewall corte conexões idle
+    keepAliveInitialDelayMillis: 10_000,
   });
+
+  // Log de erros do pool (conexões mortas, timeouts, etc.)
+  pool.on('error', (err) => {
+    console.error('❌ pg.Pool error (idle client):', err.message);
+  });
+
   db = drizzle(pool, { schema });
   return db;
 }

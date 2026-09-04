@@ -6,7 +6,7 @@
     region: frankfurt
     dockerfilePath: ./Dockerfile
     autoDeploy: true
-    healthCheckPath: /api/whatsapp/status
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
         sync: false

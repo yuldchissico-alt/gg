@@ -1,6 +1,27 @@
 import { getDb } from "./db";
 import { sql } from "drizzle-orm";
 
+const MAX_DB_RETRIES = 5;
+const DB_RETRY_DELAY_MS = 3_000;
+
+async function waitForDatabase(): Promise<boolean> {
+  for (let attempt = 1; attempt <= MAX_DB_RETRIES; attempt++) {
+    try {
+      const db = getDb();
+      if (!db) return false;
+      await db.execute(sql`SELECT 1`);
+      console.log(`✅ Conexão com o banco de dados verificada (tentativa ${attempt})`);
+      return true;
+    } catch (err: any) {
+      console.warn(`⚠️ DB não acessível (tentativa ${attempt}/${MAX_DB_RETRIES}): ${err?.message}`);
+      if (attempt < MAX_DB_RETRIES) {
+        await new Promise(r => setTimeout(r, DB_RETRY_DELAY_MS));
+      }
+    }
+  }
+  return false;
+}
+
 export async function initializeDatabase() {
   try {
     const db = getDb();
@@ -9,8 +30,12 @@ export async function initializeDatabase() {
       return;
     }
     console.log('Verificando conexão com o banco de dados Neon PostgreSQL...');
-    await db.execute(sql`SELECT 1`);
-    console.log('Conexão verificada com sucesso!');
+
+    const connected = await waitForDatabase();
+    if (!connected) {
+      console.error('❌ Não foi possível conectar ao banco de dados após múltiplas tentativas.');
+      return;
+    }
 
     console.log('🚀 Criando tabelas se não existirem...');
     await db.execute(sql`

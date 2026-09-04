@@ -41,9 +41,100 @@ export class WhatsAppService {
   > = new Map();
   /** Anti-ban state por userId */
   private antiBan: Map<string, AntiBanState> = new Map();
+  /** Controle de auto-reconexão: evita loops infinitos */
+  private reconnectAttempts: Map<string, number> = new Map();
+  private reconnectTimers: Map<string, NodeJS.Timeout> = new Map();
+  private heartbeatTimer: NodeJS.Timeout | null = null;
+
+  private static readonly MAX_RECONNECT_ATTEMPTS = 5;
+  private static readonly RECONNECT_BASE_DELAY_MS = 15_000; // 15s base, com backoff
 
   constructor() {
     console.log("🚀 WhatsAppService (whatsapp-web.js) inicializado");
+    this.startHeartbeat();
+  }
+
+  /**
+   * Heartbeat: verifica a cada 2 minutos se clientes que o DB marca como
+   * conectados ainda estão vivos. Se não estiver, dispara reconexão.
+   */
+  private startHeartbeat(): void {
+    if (this.heartbeatTimer) return;
+    this.heartbeatTimer = setInterval(async () => {
+      for (const [userId, status] of this.connectionStatuses.entries()) {
+        if (status.connected) {
+          const client = this.clients.get(userId);
+          if (!client) {
+            console.warn(`💓 [HEARTBEAT] Cliente ${userId} sumiu da memória — reconectando...`);
+            this.scheduleReconnect(userId);
+          }
+        }
+      }
+    }, 120_000); // a cada 2 minutos
+    // Não bloquear o processo ao fechar
+    if (this.heartbeatTimer.unref) this.heartbeatTimer.unref();
+  }
+
+  /**
+   * Agenda uma tentativa de reconexão com backoff exponencial.
+   * Não cria nova tentativa se já houver uma agendada.
+   */
+  private scheduleReconnect(userId: string): void {
+    if (this.reconnectTimers.has(userId)) return; // já agendado
+
+    const attempts = this.reconnectAttempts.get(userId) ?? 0;
+    if (attempts >= WhatsAppService.MAX_RECONNECT_ATTEMPTS) {
+      console.warn(`⚠️ [RECONEXÃO] Máximo de ${WhatsAppService.MAX_RECONNECT_ATTEMPTS} tentativas atingido para ${userId}. Aguardando ação manual.`);
+      return;
+    }
+
+    // Backoff: 15s, 30s, 60s, 120s, 240s
+    const delay = WhatsAppService.RECONNECT_BASE_DELAY_MS * Math.pow(2, attempts);
+    console.log(`🔄 [RECONEXÃO] Tentativa ${attempts + 1}/${WhatsAppService.MAX_RECONNECT_ATTEMPTS} para ${userId} em ${delay / 1000}s...`);
+
+    const timer = setTimeout(async () => {
+      this.reconnectTimers.delete(userId);
+      this.reconnectAttempts.set(userId, (this.reconnectAttempts.get(userId) ?? 0) + 1);
+      try {
+        await this.ensureClient(userId);
+        // Se chegou aqui sem exceção, reset o contador
+        this.reconnectAttempts.delete(userId);
+        console.log(`✅ [RECONEXÃO] Sucesso na reconexão para ${userId}`);
+      } catch (err: any) {
+        console.error(`❌ [RECONEXÃO] Falha ao reconectar ${userId}:`, err?.message || err);
+        // Agenda nova tentativa
+        this.scheduleReconnect(userId);
+      }
+    }, delay);
+
+    if (timer.unref) timer.unref();
+    this.reconnectTimers.set(userId, timer);
+  }
+
+  /** Cancela qualquer reconexão agendada e zera o contador */
+  private cancelReconnect(userId: string): void {
+    const timer = this.reconnectTimers.get(userId);
+    if (timer) {
+      clearTimeout(timer);
+      this.reconnectTimers.delete(userId);
+    }
+    this.reconnectAttempts.delete(userId);
+  }
+
+  /** Destrói todos os clientes e timers (usado no graceful shutdown) */
+  async destroy(): Promise<void> {
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+    for (const [userId] of this.clients.entries()) {
+      this.cancelReconnect(userId);
+      try {
+        await this.clients.get(userId)?.destroy();
+      } catch { /* ignore */ }
+    }
+    this.clients.clear();
+    console.log("🛑 WhatsAppService encerrado.");
   }
 
   async getConnectionStatus(userId: string): Promise<WhatsAppConnection> {
@@ -231,6 +322,8 @@ export class WhatsAppService {
         phoneNumber: phone,
       });
       this.qrCodes.delete(userId);
+      // Reconexão bem-sucedida — zerar contador
+      this.cancelReconnect(userId);
 
       const waiter = this.qrWaiters.get(userId);
       if (waiter) {
@@ -295,6 +388,18 @@ export class WhatsAppService {
       }
 
       this.clients.delete(userId);
+
+      // ── Auto-reconexão: só reconecta se havia sessão salva (não foi logout manual) ──
+      const sessionPath = this.getAuthSessionPath(userId);
+      const hadSession = fs.existsSync(sessionPath);
+      const isLogout = reason === "LOGOUT" || reason === "REPLACED";
+      if (hadSession && !isLogout) {
+        console.log(`🔄 [RECONEXÃO] Desconexão inesperada (${reason}). Agendando reconexão automática para ${userId}...`);
+        this.scheduleReconnect(userId);
+      } else if (isLogout) {
+        console.log(`ℹ️ [RECONEXÃO] Logout manual detectado (${reason}). Sem reconexão automática.`);
+        this.cancelReconnect(userId);
+      }
     });
 
     client.on("message", async (msg: Message) => {
