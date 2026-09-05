@@ -364,10 +364,9 @@ export class WhatsAppService {
         clientId: userId,
         dataPath: authDataPath,
       }),
-      // Cache remoto da versão do WA Web — evita download a cada restart
+      // Cache local da versão do WA Web — mais fiável que URL remota
       webVersionCache: {
-        type: "remote",
-        remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.x.html",
+        type: "local",
       },
       // QR expira em 5 minutos (padrão é 60s) — dá tempo para handshake em ambientes lentos
       qrMaxRetries: 5,
@@ -375,7 +374,7 @@ export class WhatsAppService {
       puppeteer: {
         headless,
         ...(chromePath ? { executablePath: chromePath } : {}),
-        protocolTimeout: 120_000, // 2 minutos (padrão é 30s)
+        protocolTimeout: 120_000,
         timeout: 120_000,
         args: [
           "--no-sandbox",
@@ -385,8 +384,6 @@ export class WhatsAppService {
           "--no-first-run",
           "--no-zygote",
           "--disable-gpu",
-          // Otimizações de memória para Render Starter (512MB RAM)
-          "--single-process",
           "--disable-extensions",
           "--disable-background-networking",
           "--disable-background-timer-throttling",
@@ -406,7 +403,8 @@ export class WhatsAppService {
           "--safebrowsing-disable-auto-update",
           "--password-store=basic",
           "--use-mock-keychain",
-          "--js-flags=--max-old-space-size=256",
+          // REMOVIDO: --single-process (causa crash após scan do QR)
+          // REMOVIDO: --js-flags=--max-old-space-size=256 (muito restritivo para WA Web)
         ],
       },
     });
@@ -441,7 +439,12 @@ export class WhatsAppService {
     });
 
     client.on("authenticated", async () => {
+      console.log(`🔐 [${userId}] authenticated — aguardando evento 'ready'...`);
       this.connectionStatuses.set(userId, { connected: false, status: "authenticated" });
+    });
+
+    client.on("loading_screen" as any, (percent: number, message: string) => {
+      console.log(`⏳ [${userId}] loading_screen ${percent}% — ${message}`);
     });
 
     client.on("auth_failure", async (msg: string) => {
