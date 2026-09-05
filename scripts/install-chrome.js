@@ -13,8 +13,6 @@ const cacheDir =
   process.env.PUPPETEER_CACHE_DIR || "/opt/render/.cache/puppeteer";
 
 console.log(`[install-chrome] PUPPETEER_CACHE_DIR = ${cacheDir}`);
-console.log(`[install-chrome] HOME = ${process.env.HOME}`);
-console.log(`[install-chrome] NODE_VERSION = ${process.version}`);
 
 // Verifica se já existe algum executável chrome instalado
 function findInstalledChrome(base) {
@@ -32,17 +30,12 @@ function findInstalledChrome(base) {
   return null;
 }
 
-const existing = findInstalledChrome(cacheDir);
-if (existing) {
-  console.log(`[install-chrome] Chrome já instalado em ${existing} — skipping.`);
-  process.exit(0);
-}
-
-// Também verificar o cache padrão do puppeteer (~/.cache/puppeteer)
+// Verificar cache principal e home cache
 const homeCache = `${process.env.HOME || "/root"}/.cache/puppeteer`;
-const homeExisting = findInstalledChrome(homeCache);
-if (homeExisting) {
-  console.log(`[install-chrome] Chrome já instalado em ${homeExisting} — skipping.`);
+const existing = findInstalledChrome(cacheDir) || findInstalledChrome(homeCache);
+
+if (existing) {
+  console.log(`[install-chrome] ✅ Chrome já instalado em ${existing} — skipping.`);
   process.exit(0);
 }
 
@@ -50,7 +43,7 @@ console.log(`[install-chrome] Instalando Chrome em ${cacheDir} ...`);
 try {
   execSync("npx puppeteer browsers install chrome", {
     stdio: "inherit",
-    timeout: 300_000, // 5 minutos
+    timeout: 300_000,
     env: {
       ...process.env,
       PUPPETEER_CACHE_DIR: cacheDir,
@@ -64,7 +57,7 @@ try {
     console.warn(`[install-chrome] ⚠️ Comando completou mas Chrome não encontrado em ${cacheDir}`);
   }
 } catch (err) {
-  console.warn("[install-chrome] ❌ Falha ao instalar Chrome:", err.message);
-  // Não lança — não deve impedir o build de continuar
+  console.warn("[install-chrome] ⚠️ Falha ao instalar Chrome (será instalado no startup):", err.message);
+  // Saída 0 — não bloqueia o build
   process.exit(0);
 }
