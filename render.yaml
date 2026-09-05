@@ -4,7 +4,7 @@
     env: node
     plan: starter
     region: frankfurt
-    buildCommand: pnpm install && pnpm run build && npx puppeteer browsers install chrome
+    buildCommand: pnpm install && pnpm run build
     startCommand: node dist/index.js
     autoDeploy: true
     healthCheckPath: /api/health
@@ -17,6 +17,8 @@
         value: "true"
       - key: PUPPETEER_CACHE_DIR
         value: /opt/render/.cache/puppeteer
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: "false"
     disk:
       name: pilotzap-wwebjs-data
       mountPath: /app/auth_info
