@@ -151,6 +151,18 @@ export class WhatsAppService {
     const status = this.connectionStatuses.get(userId);
     if (status?.connected) return "";
 
+    // Se houve uma falha anterior, limpar o estado para permitir nova tentativa
+    if (status?.status === "init_failed" || status?.status === "auth_failure") {
+      console.log(`🔄 [QR] Limpando estado de falha anterior (${status.status}) para ${userId}`);
+      this.connectionStatuses.delete(userId);
+      this.qrCodes.delete(userId);
+      // Garantir que o client foi removido
+      if (this.clients.has(userId)) {
+        try { await this.clients.get(userId)?.destroy(); } catch { /* ignore */ }
+        this.clients.delete(userId);
+      }
+    }
+
     const existingConnections = await storage.getAllWhatsappConnections(userId);
     if (existingConnections.length > 1) {
       console.log(`🧹 Limpando conexões duplicadas para ${userId}`);
@@ -286,11 +298,53 @@ export class WhatsAppService {
     const inFlight = this.initPromises.get(userId);
     if (inFlight) return inFlight;
 
+    // Limpar estado residual de tentativas anteriores falhadas
+    await this.cleanupStaleChrome(userId);
+
     const promise = this.initClient(userId).finally(() => {
       this.initPromises.delete(userId);
     });
     this.initPromises.set(userId, promise);
     return promise;
+  }
+
+  /**
+   * Mata processos Chrome órfãos e remove lock files que impedem nova inicialização.
+   * Chamado antes de cada tentativa de criar um novo cliente.
+   */
+  private async cleanupStaleChrome(userId: string): Promise<void> {
+    const sessionPath = this.getAuthSessionPath(userId);
+
+    // Remover lock files do Chrome (SingletonLock, SingletonCookie, etc.)
+    const lockFiles = [
+      path.join(sessionPath, "SingletonLock"),
+      path.join(sessionPath, "SingletonCookie"),
+      path.join(sessionPath, "SingletonSocket"),
+      path.join(sessionPath, "Default", "LOCK"),
+      path.join(sessionPath, "Default", "MANIFEST-000001"),
+    ];
+    for (const lockFile of lockFiles) {
+      try {
+        if (fs.existsSync(lockFile)) {
+          fs.unlinkSync(lockFile);
+          console.log(`🧹 Lock file removido: ${lockFile}`);
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Matar processos Chrome que ainda possam estar usando este userDataDir
+    if (process.platform === "linux") {
+      try {
+        const { execSync } = await import("child_process");
+        // Procura processos chrome/chromium que tenham o sessionPath nos argumentos
+        const escaped = sessionPath.replace(/'/g, "'\\''");
+        execSync(`pkill -f "${escaped}" 2>/dev/null || true`, { timeout: 5000 });
+        console.log(`🧹 Processos Chrome órfãos terminados para ${userId}`);
+      } catch { /* ignore — pkill retorna 1 se não encontrar processos */ }
+    }
+
+    // Pequena pausa para o OS liberar os recursos
+    await new Promise(r => setTimeout(r, 500));
   }
 
   private async initClient(userId: string): Promise<void> {
