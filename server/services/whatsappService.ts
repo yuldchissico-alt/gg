@@ -194,6 +194,92 @@ export class WhatsAppService {
     return path.join(this.getAuthDataPath(), `session-${userId}`);
   }
 
+  /**
+   * Resolve o caminho do executável Chrome/Chromium.
+   * Ordem de prioridade:
+   * 1. Variável WHATSAPP_CHROME_PATH (configuração manual)
+   * 2. API do puppeteer (instalado via `browsers install chrome`)
+   * 3. Scan manual de caches conhecidos (/opt/render, ~/.cache, /home)
+   * 4. Binários do sistema (/usr/bin/chromium, etc.)
+   * 5. Instalar na hora se nada funcionar (último recurso)
+   */
+  private async resolveChromePath(): Promise<string | undefined> {
+    // 1. Variável de ambiente explícita
+    const envPath = process.env.WHATSAPP_CHROME_PATH?.trim();
+    if (envPath && fs.existsSync(envPath)) return envPath;
+
+    if (process.platform !== "linux") return undefined;
+
+    // 2. Usar a API do puppeteer para encontrar o executável instalado
+    try {
+      const puppeteer = await import("puppeteer");
+      // executablePath() devolve o path se o browser estiver instalado
+      const p = puppeteer.default.executablePath();
+      if (p && fs.existsSync(p)) {
+        console.log(`🌐 Chrome via puppeteer.executablePath(): ${p}`);
+        return p;
+      }
+    } catch { /* puppeteer não disponível ou chrome não instalado */ }
+
+    // 3. Scan de caches conhecidos
+    const cacheDirs = [
+      process.env.PUPPETEER_CACHE_DIR,
+      "/opt/render/.cache/puppeteer",
+      `${process.env.HOME || "/root"}/.cache/puppeteer`,
+      "/root/.cache/puppeteer",
+      "/home/.cache/puppeteer",
+    ].filter(Boolean) as string[];
+
+    for (const cacheDir of cacheDirs) {
+      const chromeBase = `${cacheDir}/chrome`;
+      if (!fs.existsSync(chromeBase)) continue;
+      try {
+        const versions = fs.readdirSync(chromeBase).sort().reverse(); // mais recente primeiro
+        for (const ver of versions) {
+          for (const sub of ["chrome-linux64", "chrome-linux"]) {
+            const p = `${chromeBase}/${ver}/${sub}/chrome`;
+            if (fs.existsSync(p)) {
+              console.log(`🌐 Chrome encontrado em cache: ${p}`);
+              return p;
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    // 4. Binários do sistema
+    const systemCandidates = [
+      "/usr/bin/chromium",
+      "/usr/bin/chromium-browser",
+      "/usr/bin/google-chrome-stable",
+      "/usr/bin/google-chrome",
+      "/usr/local/bin/chromium",
+    ];
+    for (const p of systemCandidates) {
+      if (fs.existsSync(p)) {
+        console.log(`🌐 Chrome do sistema encontrado: ${p}`);
+        return p;
+      }
+    }
+
+    // 5. Último recurso: instalar agora mesmo
+    console.warn("⚠️ Chrome não encontrado — tentando instalar agora...");
+    try {
+      const { execSync } = await import("child_process");
+      const cacheDir = process.env.PUPPETEER_CACHE_DIR || "/opt/render/.cache/puppeteer";
+      execSync("npx puppeteer browsers install chrome", {
+        stdio: "inherit",
+        timeout: 300_000, // 5 minutos
+        env: { ...process.env, PUPPETEER_CACHE_DIR: cacheDir },
+      });
+      // Re-scan após instalação
+      return await this.resolveChromePath();
+    } catch (installErr: any) {
+      console.error("❌ Falha ao instalar Chrome na hora:", installErr?.message);
+      return undefined;
+    }
+  }
+
   private async ensureClient(userId: string): Promise<void> {
     if (this.clients.has(userId)) return;
 
@@ -213,49 +299,9 @@ export class WhatsAppService {
 
     this.connectionStatuses.set(userId, { connected: false, status: "initializing" });
 
-    let chromePath = process.env.WHATSAPP_CHROME_PATH?.trim();
-    if (!chromePath && process.platform === "linux") {
-      // Puppeteer instalado via `npx puppeteer browsers install chrome`
-      // guarda em $PUPPETEER_CACHE_DIR ou ~/.cache/puppeteer
-      const puppeteerCacheDir =
-        process.env.PUPPETEER_CACHE_DIR ||
-        process.env.PUPPETEER_EXECUTABLE_PATH?.split("/chrome/")[0] ||
-        "/opt/render/.cache/puppeteer";
-
-      // Glob manual: achar o executável chrome dentro da pasta de cache do puppeteer
-      const puppeteerChromeCandidates: string[] = [];
-      try {
-        // Estrutura típica: <cacheDir>/chrome/linux-<version>/chrome-linux64/chrome
-        const chromeDir = `${puppeteerCacheDir}/chrome`;
-        if (fs.existsSync(chromeDir)) {
-          const versions = fs.readdirSync(chromeDir);
-          for (const ver of versions) {
-            const p1 = `${chromeDir}/${ver}/chrome-linux64/chrome`;
-            const p2 = `${chromeDir}/${ver}/chrome-linux/chrome`;
-            if (fs.existsSync(p1)) puppeteerChromeCandidates.push(p1);
-            if (fs.existsSync(p2)) puppeteerChromeCandidates.push(p2);
-          }
-        }
-      } catch { /* ignore */ }
-
-      const candidates = [
-        ...puppeteerChromeCandidates,          // Puppeteer cache (Render Node env)
-        "/usr/bin/chromium",                    // Debian/Ubuntu apt (Docker env)
-        "/usr/bin/chromium-browser",
-        "/usr/bin/google-chrome-stable",
-        "/usr/bin/google-chrome",
-      ];
-      for (const p of candidates) {
-        if (fs.existsSync(p)) {
-          chromePath = p;
-          console.log(`🌐 Chrome encontrado em: ${chromePath}`);
-          break;
-        }
-      }
-      if (!chromePath) {
-        console.warn("⚠️ Chrome não encontrado em nenhum caminho. Candidatos verificados:", candidates.join(", "));
-      }
-    }
+    // ── Resolver o caminho do Chrome ──────────────────────────────────────────
+    const chromePath = await this.resolveChromePath();
+    console.log(`🌐 Chrome path para puppeteer: ${chromePath ?? "(deixar puppeteer decidir)"}`);
 
     const headless = (process.env.WHATSAPP_HEADLESS ?? "true").toLowerCase() !== "false";
 
