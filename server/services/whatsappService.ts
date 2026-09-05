@@ -310,12 +310,14 @@ export class WhatsAppService {
         clientId: userId,
         dataPath: authDataPath,
       }),
-      // Aumentar timeout do protocolo CDP para ambientes lentos (Render Starter)
-      // O padrão é 30s — insuficiente para VMs com pouca CPU/RAM
+      // Cache remoto da versão do WA Web — evita download a cada restart
       webVersionCache: {
         type: "remote",
         remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.x.html",
       },
+      // QR expira em 5 minutos (padrão é 60s) — dá tempo para handshake em ambientes lentos
+      qrMaxRetries: 5,
+      authTimeoutMs: 300_000, // 5 minutos para autenticar após escanear o QR
       puppeteer: {
         headless,
         ...(chromePath ? { executablePath: chromePath } : {}),

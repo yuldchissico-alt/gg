@@ -26,55 +26,59 @@ export default function WhatsAppConnectionModal({ open, onOpenChange }: WhatsApp
   const [connectionName, setConnectionName] = useState("");
   const [qrCodeImage, setQrCodeImage] = useState<string>("");
   const [showQR, setShowQR] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutos — alinhado com authTimeoutMs do backend
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // 🎯 GERAR QR CODE DO BAILEYS VIA BACKEND
+  // 🎯 GERAR QR CODE VIA BACKEND
   const generateQRMutation = useMutation({
     mutationFn: async () => {
-      // First, check connection status
+      // Verificar se já está conectado
       const statusRes = await apiRequest("GET", "/api/whatsapp/status");
       const statusData = await statusRes.json();
       if (statusData.connected) {
         return { connected: true };
       }
 
-      // Reset timer before starting
-      setTimeLeft(60);
-      
-      // Inicia processo de geração
-      await apiRequest("POST", "/api/whatsapp/qr");
-      
-      // Polling para obter o QR Code
+      setTimeLeft(300);
+
+      // Disparar inicialização do cliente (não bloquear — o backend faz long-poll internamente)
+      const initRes = await apiRequest("POST", "/api/whatsapp/qr");
+
+      // Se já veio QR na primeira chamada, usar diretamente
+      if (initRes.ok) {
+        const initData = await initRes.json();
+        if (initData.qrCode) return { qrCode: initData.qrCode };
+      }
+
+      // Polling leve — só para buscar o QR gerado pelo evento 'qr' do whatsapp-web.js
+      // Intervalo de 3s, máximo de 30 tentativas (90s total)
       let qr = "";
       let attempts = 0;
-      const maxAttempts = 20; // Even more attempts
-      
+      const maxAttempts = 30;
+
       while (!qr && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Se o modal foi fechado ou já conectou, para o polling
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
         if (!open) throw new Error("Modal fechado");
 
-        const response = await apiRequest("POST", "/api/whatsapp/qr");
-        const data = await response.json();
-        
-        // Se conectou durante o polling
-        const checkStatus = await apiRequest("GET", "/api/whatsapp/status");
-        const currentStatus = await checkStatus.json();
-        if (currentStatus.connected) {
-          return { connected: true };
+        // Usar GET no status em vez de POST no /qr — não reinicia o processo
+        const statusCheck = await apiRequest("GET", "/api/whatsapp/status");
+        const currentStatus = await statusCheck.json();
+
+        if (currentStatus.connected) return { connected: true };
+        if (currentStatus.qrCode) {
+          qr = currentStatus.qrCode;
+          break;
         }
 
-        qr = data.qrCode;
         attempts++;
       }
-      
+
       if (!qr) {
         throw new Error("O QR Code demorou muito para ser gerado. Tente novamente.");
       }
-      
+
       return { qrCode: qr };
     },
     onSuccess: (data) => {
@@ -92,11 +96,11 @@ export default function WhatsAppConnectionModal({ open, onOpenChange }: WhatsApp
       if (data.qrCode) {
         setQrCodeImage(data.qrCode);
         setShowQR(true);
-        setTimeLeft(60);
-        
+        setTimeLeft(300); // 5 minutos
+
         toast({
-          title: "✅ QR Code Atualizado!",
-          description: "Escaneie para conectar",
+          title: "✅ QR Code Gerado!",
+          description: "Escaneie com o WhatsApp no celular",
           duration: 2000,
         });
       }
@@ -164,31 +168,28 @@ export default function WhatsAppConnectionModal({ open, onOpenChange }: WhatsApp
     }
   }, [whatsappStatus?.connected, open, showQR, connectionName, onOpenChange, queryClient, toast]);
 
-  // Timer logic for QR Code expiration
+  // Timer para exibição — conta regressiva de 5 minutos
+  // Ao chegar a 0, mostra botão de regenerar mas NÃO reinicia automaticamente
+  // (evita interromper o handshake no meio)
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (showQR && qrCodeImage && timeLeft > 0) {
+    if (showQR && qrCodeImage && timeLeft > 0 && !whatsappStatus?.connected) {
       timer = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            console.log("Tempo esgotado, disparando regeneração...");
-            // Don't auto-regenerate if already connected or connecting
-            if (!whatsappStatus?.connected) {
-              generateQRMutation.mutate();
-            }
-            return 60;
+            return 0; // Parar em 0 — não reiniciar sozinho
           }
           return prev - 1;
         });
       }, 1000);
     }
     return () => clearInterval(timer);
-  }, [showQR, qrCodeImage, whatsappStatus?.connected, generateQRMutation]);
+  }, [showQR, qrCodeImage, whatsappStatus?.connected]);
 
-  // Reset timer when open changes
+  // Reset quando o modal abre/fecha
   useEffect(() => {
     if (!open) {
-      setTimeLeft(60);
+      setTimeLeft(300);
       setShowQR(false);
       setQrCodeImage("");
     } else {
@@ -231,7 +232,7 @@ export default function WhatsAppConnectionModal({ open, onOpenChange }: WhatsApp
       setConnectionName("");
       setQrCodeImage("");
       setShowQR(false);
-      setTimeLeft(60);
+      setTimeLeft(300);
       
       // Fechar modal e atualizar lista
       onOpenChange(false);
@@ -346,12 +347,18 @@ export default function WhatsAppConnectionModal({ open, onOpenChange }: WhatsApp
                 <img 
                   src={qrCodeImage} 
                   alt="QR Code" 
-                  className="w-48 h-48"
+                  className={`w-48 h-48 transition-opacity ${timeLeft === 0 ? 'opacity-30' : 'opacity-100'}`}
                   data-testid="img-qr-code"
                 />
-                <div className="absolute top-2 right-2 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded-md flex items-center gap-1 text-[10px] font-bold text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                <div className={`absolute top-2 right-2 px-2 py-1 rounded-md flex items-center gap-1 text-[10px] font-bold border ${
+                  timeLeft === 0
+                    ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
+                    : timeLeft < 60
+                    ? 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800'
+                    : 'bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                }`}>
                   <Timer className="h-3 w-3" />
-                  {timeLeft}s
+                  {timeLeft === 0 ? 'Expirado' : timeLeft >= 60 ? `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}` : `${timeLeft}s`}
                 </div>
               </div>
               
@@ -384,7 +391,7 @@ export default function WhatsAppConnectionModal({ open, onOpenChange }: WhatsApp
                   onClick={() => {
                     setShowQR(false);
                     setQrCodeImage("");
-                    setTimeLeft(60);
+                    setTimeLeft(300);
                   }}
                   variant="outline"
                   size="sm"
