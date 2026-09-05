@@ -215,8 +215,32 @@ export class WhatsAppService {
 
     let chromePath = process.env.WHATSAPP_CHROME_PATH?.trim();
     if (!chromePath && process.platform === "linux") {
+      // Puppeteer instalado via `npx puppeteer browsers install chrome`
+      // guarda em $PUPPETEER_CACHE_DIR ou ~/.cache/puppeteer
+      const puppeteerCacheDir =
+        process.env.PUPPETEER_CACHE_DIR ||
+        process.env.PUPPETEER_EXECUTABLE_PATH?.split("/chrome/")[0] ||
+        "/opt/render/.cache/puppeteer";
+
+      // Glob manual: achar o executável chrome dentro da pasta de cache do puppeteer
+      const puppeteerChromeCandidates: string[] = [];
+      try {
+        // Estrutura típica: <cacheDir>/chrome/linux-<version>/chrome-linux64/chrome
+        const chromeDir = `${puppeteerCacheDir}/chrome`;
+        if (fs.existsSync(chromeDir)) {
+          const versions = fs.readdirSync(chromeDir);
+          for (const ver of versions) {
+            const p1 = `${chromeDir}/${ver}/chrome-linux64/chrome`;
+            const p2 = `${chromeDir}/${ver}/chrome-linux/chrome`;
+            if (fs.existsSync(p1)) puppeteerChromeCandidates.push(p1);
+            if (fs.existsSync(p2)) puppeteerChromeCandidates.push(p2);
+          }
+        }
+      } catch { /* ignore */ }
+
       const candidates = [
-        "/usr/bin/chromium",
+        ...puppeteerChromeCandidates,          // Puppeteer cache (Render Node env)
+        "/usr/bin/chromium",                    // Debian/Ubuntu apt (Docker env)
         "/usr/bin/chromium-browser",
         "/usr/bin/google-chrome-stable",
         "/usr/bin/google-chrome",
@@ -224,8 +248,12 @@ export class WhatsAppService {
       for (const p of candidates) {
         if (fs.existsSync(p)) {
           chromePath = p;
+          console.log(`🌐 Chrome encontrado em: ${chromePath}`);
           break;
         }
+      }
+      if (!chromePath) {
+        console.warn("⚠️ Chrome não encontrado em nenhum caminho. Candidatos verificados:", candidates.join(", "));
       }
     }
 

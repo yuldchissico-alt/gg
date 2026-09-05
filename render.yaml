@@ -1,10 +1,11 @@
 ﻿services:
   - type: web
     name: pilotzap
-    env: docker
+    env: node
     plan: starter
     region: frankfurt
-    dockerfilePath: ./Dockerfile
+    buildCommand: pnpm install && pnpm run build && npx puppeteer browsers install chrome
+    startCommand: node dist/index.js
     autoDeploy: true
     healthCheckPath: /api/health
     envVars:
@@ -14,8 +15,8 @@
         value: production
       - key: WHATSAPP_HEADLESS
         value: "true"
-      - key: WHATSAPP_CHROME_PATH
-        value: "/usr/bin/chromium"
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/.cache/puppeteer
     disk:
       name: pilotzap-wwebjs-data
       mountPath: /app/auth_info
