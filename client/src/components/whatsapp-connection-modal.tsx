@@ -118,55 +118,58 @@ export default function WhatsAppConnectionModal({ open, onOpenChange }: WhatsApp
   const { data: whatsappStatus } = useQuery<WhatsAppStatus>({
     queryKey: ["/api/whatsapp/status"],
     enabled: open,
+    // Polling activo enquanto o modal está aberto OU enquanto estiver a aguardar conexão
     refetchInterval: (query) => {
-      // Se estiver na tela do QR e não estiver conectado, poll status mais rápido
-      if (open && showQR && !query.state.data?.connected) {
-        return 2000;
-      }
+      const status = query.state.data;
+      // Parar polling se já conectou
+      if (status?.connected) return false;
+      // Se o modal está aberto com QR visível, poll agressivo (2s)
+      if (open && showQR) return 2000;
+      // Se está em inicialização (pode ter escaneado e fechado o modal), continuar a 3s
+      if (status?.status === "qr_ready" || status?.status === "initializing" || status?.status === "authenticated") return 3000;
       return false;
-    }
+    },
+    // Continuar a fazer refetch mesmo com o modal fechado enquanto não conectar
+    refetchIntervalInBackground: true,
   });
 
-  // Fecha o modal automaticamente se conectar via polling do useQuery
+  // Detecta conexão bem-sucedida via polling — funciona mesmo com modal fechado
+  // (o utilizador pode escanear e fechar o modal antes do 'ready' chegar)
   useEffect(() => {
-    if (open && showQR && whatsappStatus?.connected) {
+    if (whatsappStatus?.connected) {
       console.log("✅ Conexão detectada via polling!");
-      
+
       const finishConnection = async () => {
         try {
-          // Salva o nome da conexão se houver um
-          if (connectionName.trim()) {
+          if (open && connectionName.trim()) {
             await apiRequest("POST", "/api/whatsapp/connections", {
               name: connectionName.trim(),
               phoneNumber: whatsappStatus.phoneNumber || "",
               isConnected: true
             });
           }
-          
+
           toast({
-            title: "✅ Conectado com sucesso!",
-            description: `WhatsApp ${connectionName || ""} vinculado.`,
-            duration: 3000,
+            title: "✅ WhatsApp Conectado!",
+            description: `Número ${whatsappStatus.phoneNumber || ""} vinculado com sucesso.`,
+            duration: 4000,
           });
-          
-          // RESET STATE BEFORE CLOSING
+
           setShowQR(false);
           setQrCodeImage("");
-          onOpenChange(false);
-          
-          // Invalidate queries to update UI
+          if (open) onOpenChange(false);
+
           queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/connections"] });
           queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/status"] });
         } catch (error) {
-          console.error("Erro ao salvar nome da conexão:", error);
-          // Mesmo com erro no nome, fecha o modal pois conectou
-          onOpenChange(false);
+          console.error("Erro ao finalizar conexão:", error);
+          if (open) onOpenChange(false);
         }
       };
-      
+
       finishConnection();
     }
-  }, [whatsappStatus?.connected, open, showQR, connectionName, onOpenChange, queryClient, toast]);
+  }, [whatsappStatus?.connected]);
 
   // Timer para exibição — conta regressiva de 5 minutos
   // Ao chegar a 0, mostra botão de regenerar mas NÃO reinicia automaticamente

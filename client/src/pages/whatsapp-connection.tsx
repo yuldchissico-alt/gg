@@ -13,12 +13,23 @@ export default function WhatsAppConnection() {
 
   const { data: whatsappStatus } = useQuery<any>({
     queryKey: ["/api/whatsapp/status"],
-    refetchInterval: 5000,
+    refetchInterval: (query) => {
+      // Poll mais rápido quando não está conectado (aguardando handshake)
+      const status = query.state.data;
+      if (!status?.connected) return 2000;
+      return 10000; // Quando conectado, reduzir frequência
+    },
+    refetchIntervalInBackground: true,
   });
 
   const { data: connections } = useQuery<any[]>({
     queryKey: ["/api/whatsapp/connections"],
-    refetchInterval: 5000,
+    refetchInterval: (query) => {
+      const status = query.state.data;
+      if (!status || (Array.isArray(status) && !status.some((c: any) => c.isConnected))) return 3000;
+      return 10000;
+    },
+    refetchIntervalInBackground: true,
   });
 
   return (
