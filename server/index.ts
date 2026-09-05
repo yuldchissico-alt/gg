@@ -6,6 +6,17 @@ if (!process.env.DATABASE_URL && typeof (process as any).loadEnvFile === 'functi
   }
 }
 
+// ── Proteção global: evita que erros não capturados derrubem o processo ──────
+// Erros do Chromium/WhatsApp não devem causar "Exited with status 1"
+process.on("uncaughtException", (err) => {
+  console.error("❌ [uncaughtException] Erro não capturado (processo continua):", err?.message || err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  console.error("❌ [unhandledRejection] Promise rejeitada não tratada (processo continua):", msg);
+});
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -47,15 +58,26 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await initializeDatabase();
-  const server = await registerRoutes(app);
+  try {
+    await initializeDatabase();
+  } catch (err: any) {
+    console.error("❌ Falha ao inicializar banco de dados (servidor continua):", err?.message || err);
+  }
+
+  let server: any;
+  try {
+    server = await registerRoutes(app);
+  } catch (err: any) {
+    console.error("❌ Falha ao registar rotas:", err?.message || err);
+    process.exit(1);
+  }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
-    throw err;
+    // Não relançar o erro — evita uncaughtException em prod
+    console.error(`[Express error handler] ${status} — ${message}`);
   });
 
   // importantly only setup vite in development and after
@@ -123,4 +145,7 @@ app.use((req, res, next) => {
 
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT",  () => shutdown("SIGINT"));
-})();
+})().catch((err) => {
+  console.error("❌ Falha fatal no startup:", err?.message || err);
+  process.exit(1);
+});
