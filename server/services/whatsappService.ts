@@ -310,9 +310,17 @@ export class WhatsAppService {
         clientId: userId,
         dataPath: authDataPath,
       }),
+      // Aumentar timeout do protocolo CDP para ambientes lentos (Render Starter)
+      // O padrão é 30s — insuficiente para VMs com pouca CPU/RAM
+      webVersionCache: {
+        type: "remote",
+        remotePath: "https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.x.html",
+      },
       puppeteer: {
         headless,
         ...(chromePath ? { executablePath: chromePath } : {}),
+        protocolTimeout: 120_000, // 2 minutos (padrão é 30s)
+        timeout: 120_000,
         args: [
           "--no-sandbox",
           "--disable-setuid-sandbox",
@@ -321,6 +329,28 @@ export class WhatsAppService {
           "--no-first-run",
           "--no-zygote",
           "--disable-gpu",
+          // Otimizações de memória para Render Starter (512MB RAM)
+          "--single-process",
+          "--disable-extensions",
+          "--disable-background-networking",
+          "--disable-background-timer-throttling",
+          "--disable-backgrounding-occluded-windows",
+          "--disable-breakpad",
+          "--disable-client-side-phishing-detection",
+          "--disable-component-extensions-with-background-pages",
+          "--disable-default-apps",
+          "--disable-hang-monitor",
+          "--disable-ipc-flooding-protection",
+          "--disable-popup-blocking",
+          "--disable-prompt-on-repost",
+          "--disable-renderer-backgrounding",
+          "--disable-sync",
+          "--force-color-profile=srgb",
+          "--metrics-recording-only",
+          "--safebrowsing-disable-auto-update",
+          "--password-store=basic",
+          "--use-mock-keychain",
+          "--js-flags=--max-old-space-size=256",
         ],
       },
     });
