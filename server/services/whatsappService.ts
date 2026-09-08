@@ -10,7 +10,8 @@ import QRCode from "qrcode";
 import { storage } from "../storage";
 
 // ── Baileys ──────────────────────────────────────────────────────────────────
-import makeWASocket, {
+import {
+  makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
@@ -23,7 +24,7 @@ import makeWASocket, {
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import NodeCache from "node-cache";
-import Pino from "pino";
+import { pino } from "pino";
 
 // ── Anti-ban ─────────────────────────────────────────────────────────────────
 interface AntiBanState {
@@ -192,7 +193,7 @@ export class WhatsAppService {
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
-    const logger = Pino({ level: "silent" }) as any;
+    const logger = pino({ level: "silent" }) as any;
 
     const sock = makeWASocket({
       version,
