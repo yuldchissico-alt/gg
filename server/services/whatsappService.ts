@@ -59,6 +59,8 @@ export class WhatsAppService {
   private reconnectTimers: Map<string, NodeJS.Timeout> = new Map();
   private msgRetryCache = new NodeCache();
   private heartbeatTimer: NodeJS.Timeout | null = null;
+  /** Mapa de JID @lid → número real (ex: "20182437245038@lid" → "258840123456") */
+  private lidToPhone: Map<string, string> = new Map();
 
   private static readonly MAX_RECONNECT = 5;
   private static readonly RECONNECT_BASE_MS = 15_000;
@@ -315,9 +317,32 @@ export class WhatsAppService {
   private async handleIncomingMessage(userId: string, sock: WASocket, msg: proto.IWebMessageInfo) {
     try {
       const from = msg.key.remoteJid ?? "";
-      if (!from || from.endsWith("@g.us")) return; // ignorar grupos por agora
+      if (!from || from.endsWith("@g.us")) return; // ignorar grupos
 
-      const phoneNumber = from.replace("@s.whatsapp.net", "");
+      // Resolver JID @lid para número real @s.whatsapp.net
+      let phoneNumber: string;
+      if (from.endsWith("@lid")) {
+        // Tentar resolver via participant ou via onWhatsApp
+        try {
+          const resolved = await sock.onWhatsApp(from);
+          if (resolved?.[0]?.jid) {
+            phoneNumber = resolved[0].jid.replace("@s.whatsapp.net", "");
+            console.log(`🔍 [BAILEYS] @lid ${from} resolvido para ${phoneNumber}`);
+          } else {
+            // Fallback: usar o número numérico do @lid
+            phoneNumber = from.replace("@lid", "").replace("@s.whatsapp.net", "");
+          }
+        } catch {
+          phoneNumber = from.replace("@lid", "").replace("@s.whatsapp.net", "");
+        }
+      } else {
+        phoneNumber = from.replace("@s.whatsapp.net", "");
+      }
+
+      // Guardar o mapeamento @lid → número real para usar no envio
+      if (from.endsWith("@lid") && phoneNumber !== from.replace("@lid", "")) {
+        this.lidToPhone.set(from, phoneNumber);
+      }
       const messageText = (
         msg.message?.conversation ||
         msg.message?.extendedTextMessage?.text ||
@@ -487,10 +512,39 @@ export class WhatsAppService {
         await new Promise(r => setTimeout(r, delay));
       }
 
-      // Montar JID — garantir formato correto
-      // Moçambique: 9 dígitos → adicionar 258; números já com código → usar directo
-      const fullPhone = cleanPhone.length === 9 ? `258${cleanPhone}` : cleanPhone;
-      const jid = `${fullPhone}@s.whatsapp.net`;
+      // Montar JID — resolver @lid para número real se necessário
+      let jid: string;
+      if (phoneNumber.endsWith("@lid")) {
+        // Verificar cache primeiro
+        const cached = this.lidToPhone.get(phoneNumber);
+        if (cached) {
+          jid = `${cached}@s.whatsapp.net`;
+          console.log(`🔍 [BAILEYS] @lid resolvido via cache para ${jid}`);
+        } else {
+          // Tentar resolver via API
+          try {
+            const resolved = await sock.onWhatsApp(phoneNumber);
+            if (resolved?.[0]?.jid) {
+              jid = resolved[0].jid;
+              this.lidToPhone.set(phoneNumber, jid.replace("@s.whatsapp.net", ""));
+              console.log(`🔍 [BAILEYS] @lid resolvido para ${jid}`);
+            } else {
+              // Usar o número numérico como fallback
+              const numeric = phoneNumber.replace("@lid", "");
+              const fullPhone = numeric.length === 9 ? `258${numeric}` : numeric;
+              jid = `${fullPhone}@s.whatsapp.net`;
+              console.warn(`⚠️ [BAILEYS] @lid não resolvido — usando fallback ${jid}`);
+            }
+          } catch {
+            const numeric = phoneNumber.replace("@lid", "");
+            const fullPhone = numeric.length === 9 ? `258${numeric}` : numeric;
+            jid = `${fullPhone}@s.whatsapp.net`;
+          }
+        }
+      } else {
+        const fullPhone = cleanPhone.length === 9 ? `258${cleanPhone}` : cleanPhone;
+        jid = `${fullPhone}@s.whatsapp.net`;
+      }
 
       console.log(`📤 [BAILEYS] Enviando para ${jid}: "${message?.slice(0, 50)}"`);
 
@@ -498,10 +552,9 @@ export class WhatsAppService {
       try {
         const [result] = await sock.onWhatsApp(jid);
         if (!result?.exists) {
-          // Tentar com o número limpo sem prefixo de país se falhar
           console.warn(`⚠️ [BAILEYS] JID ${jid} não encontrado no WhatsApp`);
         }
-      } catch { /* ignorar — pode falhar sem bloquear o envio */ }
+      } catch { /* ignorar */ }
 
       // Simulação de presença (typing)
       try {
