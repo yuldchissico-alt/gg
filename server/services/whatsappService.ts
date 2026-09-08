@@ -464,6 +464,13 @@ export class WhatsAppService {
       const sock = this.sockets.get(userId);
       if (!sock) { console.error("❌ Socket não encontrado para:", userId); return false; }
 
+      // Verificar se está realmente conectado antes de enviar
+      const connStatus = this.connectionStatuses.get(userId);
+      if (!connStatus?.connected) {
+        console.error(`❌ [BAILEYS] Não conectado (status: ${connStatus?.status}) — impossível enviar para ${phoneNumber}`);
+        return false;
+      }
+
       const cleanPhone = phoneNumber.replace(/\D/g, "");
       if (cleanPhone.includes("843955854")) {
         console.warn(`🛑 Envio bloqueado para número proibido: ${phoneNumber}`);
@@ -480,15 +487,27 @@ export class WhatsAppService {
         await new Promise(r => setTimeout(r, delay));
       }
 
-      // Montar JID
+      // Montar JID — garantir formato correto
+      // Moçambique: 9 dígitos → adicionar 258; números já com código → usar directo
       const fullPhone = cleanPhone.length === 9 ? `258${cleanPhone}` : cleanPhone;
       const jid = `${fullPhone}@s.whatsapp.net`;
+
+      console.log(`📤 [BAILEYS] Enviando para ${jid}: "${message?.slice(0, 50)}"`);
+
+      // Verificar se o JID existe no WhatsApp
+      try {
+        const [result] = await sock.onWhatsApp(jid);
+        if (!result?.exists) {
+          // Tentar com o número limpo sem prefixo de país se falhar
+          console.warn(`⚠️ [BAILEYS] JID ${jid} não encontrado no WhatsApp`);
+        }
+      } catch { /* ignorar — pode falhar sem bloquear o envio */ }
 
       // Simulação de presença (typing)
       try {
         await sock.presenceSubscribe(jid);
         await sock.sendPresenceUpdate("composing", jid);
-        const typingDelay = Math.min(Math.max(message.length * 40, 1500), 4000);
+        const typingDelay = Math.min(Math.max((message || "").length * 40, 1500), 4000);
         await new Promise(r => setTimeout(r, typingDelay));
         await sock.sendPresenceUpdate("paused", jid);
       } catch { /* ignore */ }
@@ -510,7 +529,7 @@ export class WhatsAppService {
       if (state) this.recordSend(state);
       return true;
     } catch (err: any) {
-      console.error("❌ Erro ao enviar mensagem (Baileys):", err?.message ?? err);
+      console.error(`❌ Erro ao enviar mensagem (Baileys) para ${phoneNumber}:`, err?.message ?? err);
       return false;
     }
   }
