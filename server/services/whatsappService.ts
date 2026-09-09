@@ -342,22 +342,33 @@ export class WhatsAppService {
     });
 
     // ── Sincronização de contactos — mapeia @lid → número real ───────────────
-    // O Baileys emite este evento ao conectar e quando o WA sincroniza contactos.
-    // Cada entrada tem { id: "NÚMERO@s.whatsapp.net", lid: "LID@lid", ... }
     sock.ev.on("contacts.upsert", async (contacts) => {
       let mapped = 0;
       for (const c of contacts) {
         const lid = (c as any).lid as string | undefined;
         if (lid && c.id?.endsWith("@s.whatsapp.net")) {
           const phone = c.id.replace("@s.whatsapp.net", "");
-          // Guardar mapeamento nos dois sentidos
-          this.lidToPhone.set(lid, phone);
-          this.lidToPhone.set(`jid:${lid}`, phone);
-          // Também mapear sem sufixo @lid
+          const lidFull = lid.endsWith("@lid") ? lid : `${lid}@lid`;
           const lidNum = lid.replace("@lid", "");
+          // Guardar mapeamento
+          this.lidToPhone.set(lidFull, phone);
           this.lidToPhone.set(lidNum, phone);
-          this.lidToPhone.set(`jid:${lidNum}@lid`, phone);
           mapped++;
+
+          // Actualizar contactos no banco que ainda têm o LID como número
+          try {
+            const existingByLid = await storage.getContactByPhone(lidNum, userId);
+            if (existingByLid && existingByLid.phoneNumber !== phone) {
+              await storage.updateContact(existingByLid.id, { phoneNumber: phone });
+              console.log(`🔄 [CONTACTS.UPSERT] Corrigido ${existingByLid.id}: ${lidNum} → ${phone}`);
+            }
+            // Também tentar com sufixo @lid
+            const existingByLidFull = await storage.getContactByPhone(lidFull, userId);
+            if (existingByLidFull && existingByLidFull.phoneNumber !== phone) {
+              await storage.updateContact(existingByLidFull.id, { phoneNumber: phone });
+              console.log(`🔄 [CONTACTS.UPSERT] Corrigido ${existingByLidFull.id}: ${lidFull} → ${phone}`);
+            }
+          } catch { /* ignore */ }
         }
       }
       if (mapped > 0) {
@@ -400,24 +411,42 @@ export class WhatsAppService {
           sendJid = `${cachedPhone}@s.whatsapp.net`;
           console.log(`🔍 [BAILEYS] @lid ${from} → ${sendJid} (cache)`);
         } else {
-          // Cache miss — tentar resolver via API
-          try {
-            const resolved = await sock.onWhatsApp(from);
-            if (resolved?.[0]?.jid && resolved[0].jid.endsWith("@s.whatsapp.net")) {
-              sendJid = resolved[0].jid;
-              phoneNumber = sendJid.replace("@s.whatsapp.net", "");
-              // Guardar no cache para uso futuro
+          // Cache miss — tentar resolver via store do Baileys
+          const store = this.stores.get(userId);
+          const storeContacts = (store as any)?.contacts as Record<string, any> | undefined;
+          // O store indexa por JID @s.whatsapp.net, procurar pelo lid
+          if (storeContacts) {
+            const match = Object.values(storeContacts).find((c: any) =>
+              c?.lid === from || c?.lid === from.replace("@lid","")
+            );
+            if (match?.id?.endsWith("@s.whatsapp.net")) {
+              phoneNumber = match.id.replace("@s.whatsapp.net", "");
+              sendJid = match.id;
               this.lidToPhone.set(from, phoneNumber);
-              this.lidToPhone.set(from.replace("@lid", ""), phoneNumber);
-              console.log(`🔍 [BAILEYS] @lid ${from} → ${sendJid} (API)`);
-            } else {
+              this.lidToPhone.set(from.replace("@lid",""), phoneNumber);
+              console.log(`🔍 [BAILEYS] @lid ${from} → ${sendJid} (store)`);
+            }
+          }
+          // Se ainda não resolvido, tentar via API
+          if (!phoneNumber || phoneNumber === from.replace("@lid","")) {
+            try {
+              const resolved = await sock.onWhatsApp(from);
+              if (resolved?.[0]?.jid && resolved[0].jid.endsWith("@s.whatsapp.net")) {
+                sendJid = resolved[0].jid;
+                phoneNumber = sendJid.replace("@s.whatsapp.net", "");
+                this.lidToPhone.set(from, phoneNumber);
+                this.lidToPhone.set(from.replace("@lid", ""), phoneNumber);
+                console.log(`🔍 [BAILEYS] @lid ${from} → ${sendJid} (API)`);
+              } else {
+                // Último recurso — LID numérico (será corrigido quando store popular)
+                sendJid = from;
+                phoneNumber = from.replace("@lid", "");
+                console.warn(`⚠️ [BAILEYS] @lid ${from} não resolvido — LID numérico temporário`);
+              }
+            } catch {
               sendJid = from;
               phoneNumber = from.replace("@lid", "");
-              console.warn(`⚠️ [BAILEYS] @lid ${from} não resolvido — usando LID numérico`);
             }
-          } catch {
-            sendJid = from;
-            phoneNumber = from.replace("@lid", "");
           }
         }
       } else {
