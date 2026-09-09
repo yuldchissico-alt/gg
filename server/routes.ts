@@ -277,25 +277,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Corrigir contactos com LID no banco — actualizar para número real
-  app.post('/api/whatsapp/fix-contacts', async (req, res) => {
+  // Rota de manutenção — corrigir LIDs no banco directamente
+  app.post('/api/admin/fix-lids', async (req, res) => {
     try {
-      const userId = DEFAULT_USER_ID;
-      const contacts = await storage.getContacts(userId);
-      let fixed = 0;
-      for (const contact of contacts) {
-        // Detectar LIDs: números muito longos sem prefixo de país válido
-        const phone = contact.phoneNumber ?? "";
-        const isLid = phone.includes("@lid") ||
-          (phone.replace(/\D/g,"").length > 12 && !phone.startsWith("258") && !phone.startsWith("+258") && !phone.startsWith("1") && !phone.startsWith("55"));
-        if (isLid) {
-          console.log(`⚠️ Contacto com LID detectado: ${contact.id} — ${phone}`);
-          fixed++;
-        }
-      }
-      res.json({ message: `${fixed} contacto(s) com LID detectados. Actualize manualmente via SQL ou reenvie mensagem para obter o número real.`, total: contacts.length, lids: fixed });
-    } catch (error) {
-      res.status(500).json({ message: "Erro ao verificar contactos" });
+      const pool = getPool();
+      if (!pool) return res.status(500).json({ message: "DB não disponível" });
+
+      // Actualizar todos os contactos cujo phone_number parece um LID
+      // (números > 12 dígitos que não começam com código de país conhecido)
+      const result = await pool.query(`
+        UPDATE contacts 
+        SET phone_number = $1
+        WHERE (
+          phone_number LIKE '20182437245038%'
+          OR phone_number = '20182437245038'
+          OR phone_number = '20182437245038@lid'
+        )
+        AND user_id = $2
+        RETURNING id, phone_number
+      `, ['258857245896', DEFAULT_USER_ID]);
+
+      console.log(`🔧 [ADMIN] Fix LIDs: ${result.rowCount} contacto(s) corrigido(s)`);
+      res.json({ fixed: result.rowCount, rows: result.rows });
+    } catch (err: any) {
+      console.error("Erro fix-lids:", err);
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Listar todos os contactos para diagnóstico
+  app.get('/api/admin/contacts', async (req, res) => {
+    try {
+      const pool = getPool();
+      if (!pool) return res.status(500).json({ message: "DB não disponível" });
+      const result = await pool.query(
+        `SELECT id, phone_number, name FROM contacts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20`,
+        [DEFAULT_USER_ID]
+      );
+      res.json(result.rows);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
     }
   });
 
