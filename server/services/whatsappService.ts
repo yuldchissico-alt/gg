@@ -142,6 +142,24 @@ export class WhatsAppService {
     return this.connectionStatuses.get(userId) ?? { connected: false, status: "disconnected" };
   }
 
+  /** Reconecta usando sessão salva — chamado quando o DB diz conectado mas memória não tem socket */
+  async reconnectFromDB(userId: string): Promise<void> {
+    // Evitar múltiplas chamadas simultâneas
+    if (this.initPromises.has(userId) || this.sockets.has(userId)) return;
+    const sessionPath = this.getSessionPath(userId);
+    // Só reconectar se houver sessão salva no disco
+    if (!fs.existsSync(path.join(sessionPath, "creds.json"))) {
+      console.log(`ℹ️ [RECONEXÃO DB] Sem sessão no disco para ${userId} — ignorar`);
+      return;
+    }
+    console.log(`🔄 [RECONEXÃO DB] Reconectando com sessão existente para ${userId}`);
+    try {
+      await this.ensureSocket(userId);
+    } catch (err: any) {
+      console.error(`❌ [RECONEXÃO DB] Falha:`, err?.message);
+    }
+  }
+
   async getQRCode(userId: string): Promise<string> {
     const status = this.connectionStatuses.get(userId);
     if (status?.connected) return "";
@@ -213,13 +231,6 @@ export class WhatsAppService {
 
     const logger = pino({ level: "silent" }) as any;
 
-    // Store em memória — mantém índice de contactos, mensagens e chats
-    // Resolve automaticamente JIDs @lid para @s.whatsapp.net
-    const store = makeInMemoryStore({ logger });
-    store.bind(sock.ev);
-    this.stores.set(userId, store);
-    this.sockets.set(userId, sock);
-
     const sock = makeWASocket({
       version,
       auth: state,
@@ -234,6 +245,10 @@ export class WhatsAppService {
       browser: Browsers.appropriate("Chrome"),
     });
 
+    // Store em memória — mantém índice de contactos, mensagens e chats
+    const store = makeInMemoryStore({ logger });
+    store.bind(sock.ev);
+    this.stores.set(userId, store);
     this.sockets.set(userId, sock);
 
     // ── Salvar credenciais sempre que actualizadas ───────────────────────────

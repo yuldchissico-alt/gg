@@ -187,17 +187,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!status.connected) {
         const dbConn = await storage.getWhatsappConnection(userId);
         if (dbConn && dbConn.isConnected) {
-          // Se o banco diz que está conectado mas a memória não, reinicializa o serviço
+          // Se o banco diz conectado mas memória não tem socket,
+          // tentar reconectar em background — SEM chamar getQRCode (evita loop)
           console.log(`🔄 Re-sincronizando conexão do banco para a memória para ${userId}`);
-          whatsappService.getQRCode(userId); // Isso dispara a reinicialização
+          whatsappService.reconnectFromDB(userId).catch(() => {});
           
           status = {
-            connected: true,
-            status: 'connected',
+            connected: false,
+            status: 'reconnecting',
             phoneNumber: dbConn.phoneNumber || undefined
           };
         } else if (dbConn && dbConn.qrCode) {
-          // Se tiver um QR code no banco, retorna ele
           status = {
             connected: false,
             status: 'qr_ready',
