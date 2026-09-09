@@ -51,6 +51,7 @@ interface WhatsAppConnection {
 // ── Serviço ───────────────────────────────────────────────────────────────────
 export class WhatsAppService {
   private sockets: Map<string, WASocket> = new Map();
+  private stores: Map<string, ReturnType<typeof makeInMemoryStore>> = new Map();
   private initPromises: Map<string, Promise<void>> = new Map();
   private connectionStatuses: Map<string, WhatsAppConnection> = new Map();
   private qrCodes: Map<string, string> = new Map();
@@ -132,6 +133,7 @@ export class WhatsAppService {
       try { sock.end(undefined); } catch { /* ignore */ }
     }
     this.sockets.clear();
+    this.stores.clear();
     console.log("🛑 WhatsAppService encerrado.");
   }
 
@@ -210,6 +212,13 @@ export class WhatsAppService {
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
     const logger = pino({ level: "silent" }) as any;
+
+    // Store em memória — mantém índice de contactos, mensagens e chats
+    // Resolve automaticamente JIDs @lid para @s.whatsapp.net
+    const store = makeInMemoryStore({ logger });
+    store.bind(sock.ev);
+    this.stores.set(userId, store);
+    this.sockets.set(userId, sock);
 
     const sock = makeWASocket({
       version,
@@ -608,8 +617,29 @@ export class WhatsAppService {
           jid = `${cached}@s.whatsapp.net`;
           console.log(`🔍 [BAILEYS] LID numérico → ${jid} (cache)`);
         } else {
-          const full = cleanPhone.length === 9 ? `258${cleanPhone}` : cleanPhone;
-          jid = `${full}@s.whatsapp.net`;
+          // Tentar via store do Baileys
+          const store = this.stores.get(userId);
+          if (store) {
+            const storeContact = (store.contacts as any)?.[`${phoneNumber}@lid`] ||
+                                 (store.contacts as any)?.[phoneNumber];
+            if (storeContact?.lid || storeContact?.id?.endsWith("@s.whatsapp.net")) {
+              const resolvedPhone = (storeContact.id || storeContact.lid || "").replace("@s.whatsapp.net","").replace("@lid","");
+              if (resolvedPhone && resolvedPhone !== phoneNumber) {
+                jid = `${resolvedPhone}@s.whatsapp.net`;
+                this.lidToPhone.set(phoneNumber, resolvedPhone);
+                console.log(`🔍 [BAILEYS] LID resolvido via store → ${jid}`);
+              } else {
+                const full = cleanPhone.length === 9 ? `258${cleanPhone}` : cleanPhone;
+                jid = `${full}@s.whatsapp.net`;
+              }
+            } else {
+              const full = cleanPhone.length === 9 ? `258${cleanPhone}` : cleanPhone;
+              jid = `${full}@s.whatsapp.net`;
+            }
+          } else {
+            const full = cleanPhone.length === 9 ? `258${cleanPhone}` : cleanPhone;
+            jid = `${full}@s.whatsapp.net`;
+          }
         }
       }
 

@@ -277,6 +277,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Corrigir contactos com LID no banco — actualizar para número real
+  app.post('/api/whatsapp/fix-contacts', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      const contacts = await storage.getContacts(userId);
+      let fixed = 0;
+      for (const contact of contacts) {
+        // Detectar LIDs: números muito longos sem prefixo de país válido
+        const phone = contact.phoneNumber ?? "";
+        const isLid = phone.includes("@lid") ||
+          (phone.replace(/\D/g,"").length > 12 && !phone.startsWith("258") && !phone.startsWith("+258") && !phone.startsWith("1") && !phone.startsWith("55"));
+        if (isLid) {
+          console.log(`⚠️ Contacto com LID detectado: ${contact.id} — ${phone}`);
+          fixed++;
+        }
+      }
+      res.json({ message: `${fixed} contacto(s) com LID detectados. Actualize manualmente via SQL ou reenvie mensagem para obter o número real.`, total: contacts.length, lids: fixed });
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao verificar contactos" });
+    }
+  });
+
   // GET /api/whatsapp/connections - retorna lista de conexões com status real
   app.get('/api/whatsapp/connections', async (req, res) => {
     try {
