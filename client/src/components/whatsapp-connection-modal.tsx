@@ -333,14 +333,33 @@ export default function WhatsAppConnectionModal({ open, onOpenChange }: WhatsApp
                   <p className="text-sm font-medium text-foreground">Gerando QR Code...</p>
                 </div>
               ) : (
-                <Button
-                  onClick={() => generateQRMutation.mutate()}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-2 text-sm"
-                  data-testid="button-generate-qr"
-                >
-                  <QrCode className="h-4 w-4 mr-2" />
-                  Gerar QR Code
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    onClick={() => generateQRMutation.mutate()}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-2 text-sm"
+                    data-testid="button-generate-qr"
+                  >
+                    <QrCode className="h-4 w-4 mr-2" />
+                    Gerar QR Code
+                  </Button>
+                  {generateQRMutation.isError && (
+                    <Button
+                      onClick={async () => {
+                        try {
+                          await fetch("/api/whatsapp/reset", { method: "POST" });
+                          toast({ title: "🔄 Sessão resetada", description: "Agora clique em Gerar QR Code.", duration: 3000 });
+                        } catch {
+                          toast({ title: "Erro", description: "Falha ao resetar sessão.", variant: "destructive" });
+                        }
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
+                    >
+                      🔄 Limpar sessão e tentar novamente
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           ) : qrCodeImage ? (

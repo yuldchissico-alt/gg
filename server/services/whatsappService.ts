@@ -748,6 +748,45 @@ export class WhatsAppService {
     }
   }
 
+  // ── resetSession: limpa tudo e força novo QR ─────────────────────────────────
+  async resetSession(userId: string): Promise<void> {
+    console.log(`🔄 [RESET] Resetando sessão completa para ${userId}`);
+
+    this.cancelReconnect(userId);
+
+    // Fechar socket existente
+    if (this.sockets.has(userId)) {
+      try { this.sockets.get(userId)?.end(undefined); } catch { /* ignore */ }
+      this.sockets.delete(userId);
+    }
+
+    // Cancelar init em curso
+    this.initPromises.delete(userId);
+
+    // Limpar estado em memória
+    this.connectionStatuses.delete(userId);
+    this.qrCodes.delete(userId);
+    const waiter = this.qrWaiters.get(userId);
+    if (waiter) { this.qrWaiters.delete(userId); waiter.resolve(""); }
+
+    // Limpar AMBAS as sessões do disco (Baileys + legado whatsapp-web.js)
+    const paths = [
+      this.getSessionPath(userId),
+      // Sessão legada do whatsapp-web.js
+      path.join(process.cwd(), "auth_info", "wwebjs", `session-${userId}`),
+    ];
+    for (const p of paths) {
+      if (fs.existsSync(p)) {
+        try {
+          fs.rmSync(p, { recursive: true, force: true });
+          console.log(`🧹 [RESET] Sessão removida: ${p}`);
+        } catch (e) { console.warn(`⚠️ [RESET] Erro ao remover ${p}:`, e); }
+      }
+    }
+
+    console.log(`✅ [RESET] Sessão limpa para ${userId} — pronto para novo QR`);
+  }
+
   // ── Anti-ban stats ────────────────────────────────────────────────────────────
   async getAntiBanStats(userId = "default-user") {
     const state = this.antiBan.get(userId);

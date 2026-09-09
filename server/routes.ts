@@ -265,6 +265,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reset completo da sessão — limpa disco + memória e força novo QR
+  app.post('/api/whatsapp/reset', async (req, res) => {
+    try {
+      const userId = DEFAULT_USER_ID;
+      await whatsappService.resetSession(userId);
+      res.json({ success: true, message: "Sessão resetada. Gere um novo QR Code." });
+    } catch (error) {
+      console.error("Error resetting WhatsApp session:", error);
+      res.status(500).json({ message: "Failed to reset WhatsApp session" });
+    }
+  });
+
   // GET /api/whatsapp/connections - retorna lista de conexões com status real
   app.get('/api/whatsapp/connections', async (req, res) => {
     try {
