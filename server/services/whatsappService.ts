@@ -21,6 +21,7 @@ import {
   WASocket,
   ConnectionState,
   BaileysEventMap,
+  Browsers,
 } from "@whiskeysockets/baileys";
 import { Boom } from "@hapi/boom";
 import NodeCache from "node-cache";
@@ -152,6 +153,12 @@ export class WhatsAppService {
         try { this.sockets.get(userId)?.end(undefined); } catch { /* ignore */ }
         this.sockets.delete(userId);
       }
+      // Limpar sessão corrompida do disco
+      const sessionPath = this.getSessionPath(userId);
+      if (fs.existsSync(sessionPath)) {
+        try { fs.rmSync(sessionPath, { recursive: true, force: true }); } catch { /* ignore */ }
+        console.log(`🧹 [QR] Sessão corrompida removida: ${sessionPath}`);
+      }
     }
 
     try {
@@ -190,8 +197,15 @@ export class WhatsAppService {
 
     this.connectionStatuses.set(userId, { connected: false, status: "initializing" });
 
-    const { version } = await fetchLatestBaileysVersion();
-    console.log(`🔧 Baileys versão WA: ${version.join(".")}`);
+    // Versão fixada conhecida e estável — evita falha de rede no fetchLatestBaileysVersion
+    let version: [number, number, number] = [2, 3000, 1023212357];
+    try {
+      const latest = await fetchLatestBaileysVersion();
+      version = latest.version;
+      console.log(`🔧 Baileys versão WA: ${version.join(".")}`);
+    } catch {
+      console.warn(`⚠️ Não foi possível obter versão WA online — usando versão fixa ${version.join(".")}`);
+    }
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
@@ -208,7 +222,7 @@ export class WhatsAppService {
       defaultQueryTimeoutMs: 60_000,
       keepAliveIntervalMs: 30_000,
       retryRequestDelayMs: 2_000,
-      browser: ["PilotZap", "Chrome", "120.0"],
+      browser: Browsers.appropriate("Chrome"),
     });
 
     this.sockets.set(userId, sock);
