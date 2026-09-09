@@ -331,31 +331,47 @@ export class WhatsAppService {
   private async handleIncomingMessage(userId: string, sock: WASocket, msg: proto.IWebMessageInfo) {
     try {
       const from = msg.key.remoteJid ?? "";
-      if (!from || from.endsWith("@g.us")) return; // ignorar grupos
+      if (!from || from.endsWith("@g.us") || from.endsWith("@broadcast")) return;
 
-      // Resolver JID @lid para número real @s.whatsapp.net
+      console.log(`🔍 [BAILEYS] remoteJid recebido: ${from}`);
+
+      // Resolver o número real de telefone a partir do JID
+      // O Baileys pode entregar @s.whatsapp.net, @lid, ou número puro
       let phoneNumber: string;
-      if (from.endsWith("@lid")) {
-        // Tentar resolver via participant ou via onWhatsApp
+      let sendJid: string; // JID que funciona para enviar de volta
+
+      if (from.endsWith("@s.whatsapp.net")) {
+        // Formato ideal — número directo
+        phoneNumber = from.replace("@s.whatsapp.net", "");
+        sendJid = from;
+      } else if (from.endsWith("@lid")) {
+        // Formato LID — resolver para número real
         try {
           const resolved = await sock.onWhatsApp(from);
-          if (resolved?.[0]?.jid) {
-            phoneNumber = resolved[0].jid.replace("@s.whatsapp.net", "");
-            console.log(`🔍 [BAILEYS] @lid ${from} resolvido para ${phoneNumber}`);
+          if (resolved?.[0]?.jid && resolved[0].jid.endsWith("@s.whatsapp.net")) {
+            sendJid = resolved[0].jid;
+            phoneNumber = sendJid.replace("@s.whatsapp.net", "");
+            console.log(`🔍 [BAILEYS] @lid ${from} → ${sendJid}`);
           } else {
-            // Fallback: usar o número numérico do @lid
-            phoneNumber = from.replace("@lid", "").replace("@s.whatsapp.net", "");
+            // Guardar o LID como sendJid e usar número numérico como phoneNumber
+            sendJid = from;
+            phoneNumber = from.replace("@lid", "");
           }
         } catch {
-          phoneNumber = from.replace("@lid", "").replace("@s.whatsapp.net", "");
+          sendJid = from;
+          phoneNumber = from.replace("@lid", "");
+        }
+        // Cache para envio
+        this.lidToPhone.set(from, phoneNumber);
+        // Também guardar o JID de envio
+        if (sendJid !== from) {
+          this.lidToPhone.set(from, phoneNumber);
+          this.lidToPhone.set(`jid:${from}`, sendJid.replace("@s.whatsapp.net", ""));
         }
       } else {
-        phoneNumber = from.replace("@s.whatsapp.net", "");
-      }
-
-      // Guardar o mapeamento @lid → número real para usar no envio
-      if (from.endsWith("@lid") && phoneNumber !== from.replace("@lid", "")) {
-        this.lidToPhone.set(from, phoneNumber);
+        // Número sem sufixo — adicionar @s.whatsapp.net
+        phoneNumber = from;
+        sendJid = `${from}@s.whatsapp.net`;
       }
       const messageText = (
         msg.message?.conversation ||
@@ -373,13 +389,27 @@ export class WhatsAppService {
       // Nome do contacto
       const pushName = msg.pushName ?? `Contato ${phoneNumber}`;
 
-      console.log(`[USER:${userId}] 📩 Mensagem de ${phoneNumber} (${pushName}): "${messageText}"`);
+      console.log(`[USER:${userId}] 📩 Mensagem de ${phoneNumber} (${sendJid}) (${pushName}): "${messageText}"`);
 
       const { funnelService } = await import("./funnelService");
 
+      // Procurar contacto pelo número real (phoneNumber) OU pelo sendJid (sem sufixo)
       let contact = await storage.getContactByPhone(phoneNumber, userId);
+      if (!contact && sendJid !== `${phoneNumber}@s.whatsapp.net`) {
+        // Tentar pelo número extraído do sendJid
+        const jidPhone = sendJid.replace("@s.whatsapp.net", "").replace("@lid", "");
+        contact = await storage.getContactByPhone(jidPhone, userId);
+      }
+
       if (!contact) {
         contact = await storage.createContact({ userId, phoneNumber, name: pushName, tags: [], isActive: true });
+      } else if (contact.phoneNumber !== phoneNumber && phoneNumber.length > 5 && !phoneNumber.includes("@")) {
+        // Actualizar contacto com número real se estava guardado como LID
+        console.log(`🔄 [BAILEYS] Actualizando contacto ${contact.id}: ${contact.phoneNumber} → ${phoneNumber}`);
+        try {
+          await storage.updateContact(contact.id, { phoneNumber });
+          contact = { ...contact, phoneNumber };
+        } catch { /* ignore */ }
       }
 
       await storage.createMessage({
@@ -528,41 +558,52 @@ export class WhatsAppService {
 
       // Montar JID — resolver @lid para número real se necessário
       let jid: string;
-      if (phoneNumber.endsWith("@lid")) {
-        // Verificar cache primeiro
-        const cached = this.lidToPhone.get(phoneNumber);
-        if (cached) {
-          jid = `${cached}@s.whatsapp.net`;
-          console.log(`🔍 [BAILEYS] @lid resolvido via cache para ${jid}`);
+      const isLid = phoneNumber.endsWith("@lid") || phoneNumber.includes("@lid");
+      const isNumericOnly = /^\d+$/.test(phoneNumber.replace("@lid","").replace("@s.whatsapp.net",""));
+
+      if (phoneNumber.endsWith("@s.whatsapp.net")) {
+        // já tem sufixo correcto
+        jid = phoneNumber;
+      } else if (phoneNumber.endsWith("@lid") || (isNumericOnly && phoneNumber.length > 11 && !phoneNumber.startsWith("258"))) {
+        // Pode ser um LID — verificar cache
+        const lidKey = phoneNumber.endsWith("@lid") ? phoneNumber : `${phoneNumber}@lid`;
+        const cachedJid = this.lidToPhone.get(`jid:${lidKey}`);
+        const cachedPhone = this.lidToPhone.get(lidKey);
+
+        if (cachedJid) {
+          jid = `${cachedJid}@s.whatsapp.net`;
+          console.log(`🔍 [BAILEYS] LID resolvido via cache para ${jid}`);
+        } else if (cachedPhone) {
+          jid = `${cachedPhone}@s.whatsapp.net`;
+          console.log(`🔍 [BAILEYS] LID phone resolvido via cache para ${jid}`);
         } else {
           // Tentar resolver via API
           try {
-            const resolved = await sock.onWhatsApp(phoneNumber);
-            if (resolved?.[0]?.jid) {
+            const resolved = await sock.onWhatsApp(lidKey);
+            if (resolved?.[0]?.jid?.endsWith("@s.whatsapp.net")) {
               jid = resolved[0].jid;
-              this.lidToPhone.set(phoneNumber, jid.replace("@s.whatsapp.net", ""));
-              console.log(`🔍 [BAILEYS] @lid resolvido para ${jid}`);
+              this.lidToPhone.set(`jid:${lidKey}`, jid.replace("@s.whatsapp.net", ""));
+              console.log(`🔍 [BAILEYS] LID resolvido via API para ${jid}`);
             } else {
-              // Usar o número numérico como fallback
-              const numeric = phoneNumber.replace("@lid", "");
-              const fullPhone = numeric.length === 9 ? `258${numeric}` : numeric;
-              jid = `${fullPhone}@s.whatsapp.net`;
-              console.warn(`⚠️ [BAILEYS] @lid não resolvido — usando fallback ${jid}`);
+              // último fallback — usar número limpo
+              const clean = phoneNumber.replace("@lid", "").replace(/\D/g, "");
+              jid = `${clean}@s.whatsapp.net`;
+              console.warn(`⚠️ [BAILEYS] LID não resolvido, fallback: ${jid}`);
             }
           } catch {
-            const numeric = phoneNumber.replace("@lid", "");
-            const fullPhone = numeric.length === 9 ? `258${numeric}` : numeric;
-            jid = `${fullPhone}@s.whatsapp.net`;
+            const clean = phoneNumber.replace("@lid", "").replace(/\D/g, "");
+            jid = `${clean}@s.whatsapp.net`;
           }
         }
       } else {
+        // Número normal — construir JID
         const fullPhone = cleanPhone.length === 9 ? `258${cleanPhone}` : cleanPhone;
         jid = `${fullPhone}@s.whatsapp.net`;
       }
 
       console.log(`📤 [BAILEYS] Enviando para ${jid}: "${message?.slice(0, 50)}"`);
 
-      // Verificar se o JID existe no WhatsApp
+      // Verificar se o JID existe
       try {
         const [result] = await sock.onWhatsApp(jid);
         if (!result?.exists) {
