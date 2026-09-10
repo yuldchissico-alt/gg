@@ -47,13 +47,13 @@ export default function WhatsAppConnectionModal({ open, onOpenChange }: WhatsApp
         if (initData.qrCode) return { qrCode: initData.qrCode };
       }
 
-      // Polling: verifica a cada 1.5s por até 90s
+      // Polling: verifica a cada 2s por até 90s (reduzido de 1.5s)
       // Para assim que tiver QR ou conexão — não usa POST /qr (não reinicia nada)
       let qr = "";
       const deadline = Date.now() + 90_000;
 
       while (Date.now() < deadline) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 2000)); // era 1500ms
 
         if (!open) throw new Error("Modal fechado");
 
@@ -113,12 +113,12 @@ export default function WhatsAppConnectionModal({ open, onOpenChange }: WhatsApp
   const { data: whatsappStatus, refetch: refetchStatus } = useQuery<WhatsAppStatus>({
     queryKey: ["/api/whatsapp/status"],
     enabled: open,
-    // Poll a cada 1s enquanto o QR está visível — detecta conexão rapidamente
+    // Poll mais inteligente: 2s quando QR visível, desactivado quando conectado
     refetchInterval: (query) => {
       const status = query.state.data;
-      if (status?.connected) return false;
-      if (open && showQR) return 1000; // 1s quando QR visível
-      if (status?.status === "qr_ready" || status?.status === "initializing" || status?.status === "authenticated") return 2000;
+      if (status?.connected) return false; // Parar polling quando conectado
+      if (open && showQR) return 2000; // 2s quando QR visível (era 1s)
+      if (status?.status === "qr_ready" || status?.status === "initializing" || status?.status === "authenticated") return 3000;
       return false;
     },
     refetchIntervalInBackground: true,

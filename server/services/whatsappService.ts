@@ -32,11 +32,22 @@ interface AntiBanState {
   timestamps: number[];
   sendQueue: Promise<void>;
 }
-const MAX_MSGS_PER_HOUR = 80;
+// WhatsApp recomenda máximo 50-60 msg/hora para evitar ban
+const MAX_MSGS_PER_HOUR = 50;
+const MIN_DELAY_BETWEEN_MSGS = 10_000; // 10 segundos mínimo
+const MAX_DELAY_BETWEEN_MSGS = 20_000; // 20 segundos máximo
 
 function randomDelay(minMs: number, maxMs: number): Promise<void> {
   const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
   return new Promise((r) => setTimeout(r, ms));
+}
+
+// Limpar mapas de memória periodicamente para evitar memory leak
+function cleanupOldEntries<K, V>(map: Map<K, V>, maxSize: number) {
+  if (map.size > maxSize) {
+    const keysToDelete = Array.from(map.keys()).slice(0, map.size - maxSize);
+    keysToDelete.forEach(k => map.delete(k));
+  }
 }
 
 // ── Tipos públicos ────────────────────────────────────────────────────────────
@@ -85,6 +96,9 @@ export class WhatsAppService {
   private startHeartbeat() {
     if (this.heartbeatTimer) return;
     this.heartbeatTimer = setInterval(async () => {
+      // Limpar mapas de memória para evitar memory leak (manter últimas 100 entradas)
+      cleanupOldEntries(this.lidToPhone, 100);
+      
       for (const [userId, status] of this.connectionStatuses.entries()) {
         if (status.connected && !this.sockets.has(userId)) {
           console.warn(`💓 [HEARTBEAT] Socket ${userId} desapareceu — reconectando...`);
@@ -633,8 +647,8 @@ export class WhatsAppService {
       }
 
       if (state && state.timestamps.length > 0) {
-        const delay = Math.floor(Math.random() * 3000) + 3000;
-        await new Promise(r => setTimeout(r, delay));
+        // Delay variável e mais longo entre mensagens (10-20s)
+        await randomDelay(MIN_DELAY_BETWEEN_MSGS, MAX_DELAY_BETWEEN_MSGS);
       }
 
       // ── RESOLUÇÃO DE LID: Converter LID → número real ANTES de construir JID ────
@@ -716,13 +730,17 @@ export class WhatsAppService {
 
       console.log(`📤 [BAILEYS] Enviando para ${jid}: "${message?.slice(0, 50)}"`);
 
-      // Verificar existência (opcional — não bloquear se falhar)
+      // Verificar existência antes de enviar (OBRIGATÓRIO para evitar spam score)
       try {
         const [result] = await sock.onWhatsApp(jid);
-        if (result && !result.exists) {
-          console.warn(`⚠️ [BAILEYS] ${jid} não encontrado no WhatsApp`);
+        if (!result?.exists) {
+          console.error(`❌ [BAILEYS] ${jid} não existe no WhatsApp — ABORTANDO envio`);
+          return false; // NÃO enviar para números inexistentes
         }
-      } catch { /* ignorar */ }
+      } catch (err) {
+        console.warn(`⚠️ [BAILEYS] Não foi possível verificar ${jid} — continuando...`);
+        // Continuar se a verificação falhar (problema de rede, não do número)
+      }
 
       // Simulação de presença (typing)
       try {

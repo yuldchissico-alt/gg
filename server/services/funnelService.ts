@@ -27,6 +27,9 @@ interface FunnelNodeData {
 }
 
 export class FunnelService {
+  // Mapa para prevenir processamento concorrente do mesmo nó
+  private processingNodes: Map<string, boolean> = new Map();
+  
   async executeFunnel(funnelId: string, contactId: string, triggerMessage?: string, quotedMsg?: any): Promise<void> {
     try {
       const funnel = await storage.getFunnel(funnelId);
@@ -77,17 +80,30 @@ export class FunnelService {
   }
 
   async processNextNode(executionId: string): Promise<void> {
+    // Prevenir processamento concorrente do mesmo nó (race condition)
+    const lockKey = `${executionId}`;
+    if (this.processingNodes.get(lockKey)) {
+      console.warn(`🔒 [FUNNEL] Execução ${executionId} já está sendo processada — ignorando chamada duplicada`);
+      return;
+    }
+    
+    this.processingNodes.set(lockKey, true);
+    
     try {
       const execution = await storage.getFunnelExecution(executionId);
       if (!execution || execution.status !== 'active') {
+        this.processingNodes.delete(lockKey);
         return;
       }
 
-      // Prevenir re-processamento rápido do mesmo nó (deve haver pelo menos 1 segundo de diferença)
+      // Prevenir re-processamento muito rápido do mesmo nó
       const executionData = execution.data as any || {};
       const lastProcessed = executionData.lastNodeProcessedAt ? new Date(executionData.lastNodeProcessedAt).getTime() : 0;
-      // Removido o check de duplicidade para garantir que mensagens sequenciais funcionem
-      // if (Date.now() - lastProcessed < 500 && execution.currentNodeId) { ... }
+      if (Date.now() - lastProcessed < 500 && execution.currentNodeId) {
+        console.warn(`⏳ [FUNNEL] Execução ${executionId} processada há menos de 500ms — aguardando`);
+        this.processingNodes.delete(lockKey);
+        return;
+      }
 
       const funnel = await storage.getFunnel(execution.funnelId);
       if (!funnel) {
@@ -194,7 +210,7 @@ export class FunnelService {
       const humanDelay = 500 + Math.random() * 1000;
       setTimeout(() => this.processNextNode(executionId), humanDelay);
     }
-  } catch (error) {
+    } catch (error) {
       console.error('Process next node error:', error);
       
       // Mark execution as failed
@@ -202,6 +218,9 @@ export class FunnelService {
         status: 'stopped',
         completedAt: new Date(),
       });
+    } finally {
+      // Sempre liberar o lock, mesmo em caso de erro
+      this.processingNodes.delete(lockKey);
     }
   }
 
