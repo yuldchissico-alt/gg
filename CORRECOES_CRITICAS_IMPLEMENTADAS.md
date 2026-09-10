@@ -2,28 +2,7 @@
 
 ## ✅ PRIORIDADE URGENTE (Implementado)
 
-### 1. ⚠️ Redução de Rate Limiting WhatsApp
-**Arquivo**: `server/services/whatsappService.ts`
-
-**Problema**: 
-- `MAX_MSGS_PER_HOUR = 80` estava MUITO ALTO
-- WhatsApp recomenda máximo 50-60 msg/hora para evitar ban
-
-**Solução Implementada**:
-```typescript
-const MAX_MSGS_PER_HOUR = 50; // Reduzido de 80
-const MIN_DELAY_BETWEEN_MSGS = 10_000; // 10 segundos mínimo
-const MAX_DELAY_BETWEEN_MSGS = 20_000; // 20 segundos máximo
-```
-
-**Impacto**:
-- ✅ Reduz risco de ban do WhatsApp
-- ✅ Delays mais realistas (10-20s vs 3-6s)
-- ✅ Comportamento mais humano
-
----
-
-### 2. 🧹 Limpeza de Memory Leak (lidToPhone Map)
+### 1. 🧹 Limpeza de Memory Leak (lidToPhone Map)
 **Arquivo**: `server/services/whatsappService.ts`
 
 **Problema**:
@@ -50,7 +29,34 @@ cleanupOldEntries(this.lidToPhone, 100); // Manter apenas últimas 100 entradas
 
 ---
 
-### 3. 🔒 Correção de Race Condition em Funis
+### 2. 🔒 Correção de Race Condition em Funis
+**Arquivo**: `server/services/whatsappService.ts`
+
+**Problema**:
+- Map `lidToPhone` crescia indefinidamente sem limpeza
+- Causava consumo excessivo de memória no Render
+
+**Solução Implementada**:
+```typescript
+function cleanupOldEntries<K, V>(map: Map<K, V>, maxSize: number) {
+  if (map.size > maxSize) {
+    const keysToDelete = Array.from(map.keys()).slice(0, map.size - maxSize);
+    keysToDelete.forEach(k => map.delete(k));
+  }
+}
+
+// No heartbeat (a cada 2 minutos)
+cleanupOldEntries(this.lidToPhone, 100); // Manter apenas últimas 100 entradas
+```
+
+**Impacto**:
+- ✅ Previne memory leak
+- ✅ Mantém apenas mapeamentos recentes
+- ✅ Melhora estabilidade no Render
+
+---
+
+### 2. 🔒 Correção de Race Condition em Funis
 **Arquivo**: `server/services/funnelService.ts`
 
 **Problema**:
@@ -91,7 +97,7 @@ export class FunnelService {
 
 ---
 
-### 4. 🔐 Remoção de Dados Sensíveis em /api/health
+### 3. 🔐 Remoção de Dados Sensíveis em /api/health
 **Arquivo**: `server/routes.ts`
 
 **Problema**:
@@ -125,7 +131,7 @@ res.json({
 
 ---
 
-### 5. ✅ Validação de phoneNumber
+### 4. ✅ Validação de phoneNumber
 **Arquivo**: `server/routes.ts`
 
 **Problema**:
@@ -149,7 +155,7 @@ if (phoneNumber && !/^[\d\s+()-]+$/.test(phoneNumber)) {
 
 ---
 
-### 6. 🚫 Verificação Obrigatória de Número Válido
+### 5. 🚫 Verificação Obrigatória de Número Válido
 **Arquivo**: `server/services/whatsappService.ts`
 
 **Problema**:
@@ -177,7 +183,7 @@ try {
 
 ---
 
-### 7. 📉 Redução de Polling Agressivo no Frontend
+### 6. 📉 Redução de Polling Agressivo no Frontend
 **Arquivo**: `client/src/components/whatsapp-connection-modal.tsx`
 
 **Problema**:
@@ -218,10 +224,8 @@ await new Promise(resolve => setTimeout(resolve, 2000)); // era 1500ms
 - ✅ Lock para prevenir race conditions
 
 ### Conformidade WhatsApp
-- ✅ Rate limit reduzido (80 → 50 msg/hora)
-- ✅ Delays mais longos (3-6s → 10-20s)
-- ✅ Verificação obrigatória de números
-- ✅ Comportamento mais humano
+- ✅ Verificação obrigatória de números válidos
+- ✅ Comportamento mais controlado
 
 ### Estabilidade
 - ✅ Correção de race condition em funis
@@ -317,8 +321,6 @@ curl https://gg-rmia.onrender.com/api/health
 
 ## ✅ Status das Correções
 
-- [x] Rate limiting reduzido (80 → 50)
-- [x] Delays aumentados (3-6s → 10-20s)
 - [x] Memory leak corrigido (lidToPhone cleanup)
 - [x] Race condition corrigida (lock em processNextNode)
 - [x] Dados sensíveis removidos (/api/health)

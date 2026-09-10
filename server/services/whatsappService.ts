@@ -32,10 +32,9 @@ interface AntiBanState {
   timestamps: number[];
   sendQueue: Promise<void>;
 }
-// WhatsApp recomenda máximo 50-60 msg/hora para evitar ban
-const MAX_MSGS_PER_HOUR = 50;
-const MIN_DELAY_BETWEEN_MSGS = 10_000; // 10 segundos mínimo
-const MAX_DELAY_BETWEEN_MSGS = 20_000; // 20 segundos máximo
+const MAX_MSGS_PER_HOUR = 80;
+const MIN_DELAY_BETWEEN_MSGS = 3_000; // 3 segundos mínimo
+const MAX_DELAY_BETWEEN_MSGS = 6_000; // 6 segundos máximo
 
 function randomDelay(minMs: number, maxMs: number): Promise<void> {
   const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
