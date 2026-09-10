@@ -126,6 +126,25 @@ export async function initializeDatabase() {
 
     console.log('✅ Usuário yuldchissico11@gmail.com criado/atualizado com sucesso no banco de dados!');
     console.log('✅ Configurações e tabelas do banco de dados foram sincronizadas no Neon com sucesso!');
+
+    // ── Corrigir contactos com LID no banco ──────────────────────────────────
+    // LIDs são IDs internos do WhatsApp multi-device (ex: 20182437245038)
+    // que foram guardados erroneamente em vez do número real
+    try {
+      const result = await db.execute(sql`
+        UPDATE contacts
+        SET phone_number = regexp_replace(phone_number, '^20182437245038(@lid)?$', '258857245896')
+        WHERE phone_number ~ '^20182437245038(@lid)?$'
+          AND user_id = 'default-user'
+      `);
+      const affected = (result as any)?.rowCount ?? (result as any)?.count ?? 0;
+      if (affected > 0) {
+        console.log(`🔧 Corrigidos ${affected} contacto(s) com LID → 258857245896`);
+      }
+    } catch (lidErr) {
+      console.warn('⚠️ Aviso ao corrigir LIDs (não crítico):', lidErr);
+    }
+
   } catch (error) {
     console.error('Falha ao conectar ou sincronizar tabelas no banco de dados:', error);
   }
