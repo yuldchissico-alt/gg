@@ -128,22 +128,44 @@ export async function initializeDatabase() {
     console.log('✅ Configurações e tabelas do banco de dados foram sincronizadas no Neon com sucesso!');
 
     // ── Corrigir contactos com LID (números internos do WhatsApp) ─────────────
-    // Qualquer phone_number que começa com '20182437245038' é um LID — corrigir para o número real
+    // LIDs conhecidos que precisam ser corrigidos para o número real
+    const lidMappings: Record<string, string> = {
+      "20182437245038": "258857245896",
+      // Adicione outros mapeamentos conhecidos aqui
+    };
+
     try {
-      const fixResult = await db.execute(sql`
-        UPDATE contacts 
-        SET phone_number = '258857245896',
-            name = CASE WHEN name = '.' OR name = '' OR name IS NULL THEN 'Contato 258857245896' ELSE name END,
-            updated_at = NOW()
-        WHERE user_id = 'default-user'
-          AND (
-            phone_number LIKE '20182437245038%'
-            OR phone_number = '20182437245038@lid'
-          )
-      `);
-      const count = (fixResult as any)?.rowCount ?? 0;
-      if (count > 0) {
-        console.log(`🔧 [STARTUP] ${count} contacto(s) com LID corrigido(s) para 258857245896`);
+      let totalFixed = 0;
+      
+      // Corrigir cada LID conhecido
+      for (const [lid, realNumber] of Object.entries(lidMappings)) {
+        const fixResult = await db.execute(sql`
+          UPDATE contacts 
+          SET phone_number = ${realNumber},
+              name = CASE 
+                WHEN name = '.' OR name = '' OR name IS NULL OR name LIKE ${'Contato ' + lid + '%'}
+                THEN ${'Contato ' + realNumber}
+                ELSE name 
+              END,
+              updated_at = NOW()
+          WHERE user_id = 'default-user'
+            AND (
+              phone_number = ${lid}
+              OR phone_number LIKE ${lid + '%'}
+              OR phone_number = ${lid + '@lid'}
+            )
+        `);
+        const count = (fixResult as any)?.rowCount ?? 0;
+        if (count > 0) {
+          console.log(`🔧 [STARTUP] LID ${lid} → ${realNumber}: ${count} contacto(s) corrigido(s)`);
+          totalFixed += count;
+        }
+      }
+
+      if (totalFixed > 0) {
+        console.log(`✅ [STARTUP] Total de ${totalFixed} contacto(s) com LID corrigido(s)`);
+      } else {
+        console.log(`ℹ️ [STARTUP] Nenhum contacto com LID encontrado para corrigir`);
       }
     } catch (fixErr) {
       console.warn('⚠️ Não foi possível corrigir LIDs:', fixErr);

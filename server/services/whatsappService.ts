@@ -637,54 +637,81 @@ export class WhatsAppService {
         await new Promise(r => setTimeout(r, delay));
       }
 
-      // Montar JID — resolver LID para número real se necessário
-      let jid: string;
-
-      if (phoneNumber.endsWith("@s.whatsapp.net")) {
-        jid = phoneNumber;
-      } else if (phoneNumber.endsWith("@lid")) {
-        // Tentar cache (populado pelo contacts.upsert e mensagens anteriores)
-        const cached = this.lidToPhone.get(phoneNumber) || this.lidToPhone.get(phoneNumber.replace("@lid",""));
-        if (cached) {
-          jid = `${cached}@s.whatsapp.net`;
-          console.log(`🔍 [BAILEYS] @lid → ${jid} (cache)`);
+      // ── RESOLUÇÃO DE LID: Converter LID → número real ANTES de construir JID ────
+      let resolvedPhone = phoneNumber;
+      // 1. HARD-CODED: LIDs conhecidos (adicionar aqui números problemáticos)
+      const knownLIDs: Record<string, string> = {
+        "20182437245038": "258857245896",
+      };
+      
+      if (knownLIDs[cleanPhone]) {
+        resolvedPhone = knownLIDs[cleanPhone];
+        this.lidToPhone.set(cleanPhone, resolvedPhone);
+        this.lidToPhone.set(`${cleanPhone}@lid`, resolvedPhone);
+        console.log(`🔧 [LID] LID conhecido detectado: ${cleanPhone} → ${resolvedPhone}`);
+      }
+      // 2. Verificar se é número suspeito de ser LID (>12 dígitos e NÃO começa com 258)
+      else if (cleanPhone.length > 12 && !cleanPhone.startsWith("258")) {
+        console.log(`🔍 [LID] Número suspeito de LID: ${cleanPhone}`);
+        
+        // Consultar cache em memória (populado pelo contacts.upsert)
+        const cached = this.lidToPhone.get(cleanPhone) 
+                    || this.lidToPhone.get(`${cleanPhone}@lid`)
+                    || this.lidToPhone.get(phoneNumber);
+        
+        if (cached && cached !== cleanPhone) {
+          resolvedPhone = cached;
+          console.log(`✅ [LID] Resolvido via cache: ${cleanPhone} → ${resolvedPhone}`);
         } else {
-          const num = phoneNumber.replace("@lid","");
-          const full = num.length === 9 ? `258${num}` : num;
-          jid = `${full}@s.whatsapp.net`;
-          console.warn(`⚠️ [BAILEYS] @lid não resolvido — fallback ${jid}`);
-        }
-      } else {
-        // Verificar se é um LID disfarçado (número muito longo sem prefixo 258)
-        const cached = this.lidToPhone.get(phoneNumber) || this.lidToPhone.get(`${phoneNumber}@lid`);
-        if (cached && cached !== phoneNumber) {
-          jid = `${cached}@s.whatsapp.net`;
-          console.log(`🔍 [BAILEYS] LID numérico → ${jid} (cache)`);
-        } else {
-          // Tentar via store do Baileys
+          // Tentar resolver via store do Baileys
           const store = this.stores.get(userId);
-          if (store) {
-            const storeContact = (store.contacts as any)?.[`${phoneNumber}@lid`] ||
-                                 (store.contacts as any)?.[phoneNumber];
-            if (storeContact?.lid || storeContact?.id?.endsWith("@s.whatsapp.net")) {
-              const resolvedPhone = (storeContact.id || storeContact.lid || "").replace("@s.whatsapp.net","").replace("@lid","");
-              if (resolvedPhone && resolvedPhone !== phoneNumber) {
-                jid = `${resolvedPhone}@s.whatsapp.net`;
-                this.lidToPhone.set(phoneNumber, resolvedPhone);
-                console.log(`🔍 [BAILEYS] LID resolvido via store → ${jid}`);
-              } else {
-                const full = cleanPhone.length === 9 ? `258${cleanPhone}` : cleanPhone;
-                jid = `${full}@s.whatsapp.net`;
-              }
+          const storeContacts = (store as any)?.contacts as Record<string, any> | undefined;
+          
+          if (storeContacts) {
+            // Procurar contacto que tenha o LID
+            const match = Object.values(storeContacts).find((c: any) => {
+              const cLid = (c?.lid || "").replace("@lid", "");
+              return cLid === cleanPhone || c?.lid === phoneNumber || c?.lid === `${cleanPhone}@lid`;
+            });
+            
+            if (match?.id?.endsWith("@s.whatsapp.net")) {
+              resolvedPhone = match.id.replace("@s.whatsapp.net", "");
+              this.lidToPhone.set(cleanPhone, resolvedPhone);
+              this.lidToPhone.set(`${cleanPhone}@lid`, resolvedPhone);
+              console.log(`✅ [LID] Resolvido via store: ${cleanPhone} → ${resolvedPhone}`);
             } else {
-              const full = cleanPhone.length === 9 ? `258${cleanPhone}` : cleanPhone;
-              jid = `${full}@s.whatsapp.net`;
+              console.error(`❌ [LID] FALHA: Não foi possível resolver ${cleanPhone}`);
+              // FALLBACK: bloquear envio para evitar spam de erro
+              return false;
             }
           } else {
-            const full = cleanPhone.length === 9 ? `258${cleanPhone}` : cleanPhone;
-            jid = `${full}@s.whatsapp.net`;
+            console.error(`❌ [LID] Store não disponível para resolver ${cleanPhone}`);
+            return false;
           }
         }
+      }
+      // 3. Se tem sufixo @lid explícito, resolver
+      else if (phoneNumber.endsWith("@lid")) {
+        const cached = this.lidToPhone.get(phoneNumber.replace("@lid","")) || this.lidToPhone.get(phoneNumber);
+        if (cached) {
+          resolvedPhone = cached;
+          console.log(`✅ [LID] @lid resolvido: ${phoneNumber} → ${resolvedPhone}`);
+        } else {
+          console.error(`❌ [LID] @lid não resolvido: ${phoneNumber}`);
+          return false;
+        }
+      }
+
+      // 4. Construir JID final com o número resolvido
+      let jid: string;
+      const finalClean = resolvedPhone.replace(/\D/g, "");
+      
+      if (resolvedPhone.endsWith("@s.whatsapp.net")) {
+        jid = resolvedPhone;
+      } else {
+        // Número normal — adicionar prefixo se necessário (Moçambique: 258)
+        const full = finalClean.length === 9 ? `258${finalClean}` : finalClean;
+        jid = `${full}@s.whatsapp.net`;
       }
 
       console.log(`📤 [BAILEYS] Enviando para ${jid}: "${message?.slice(0, 50)}"`);
@@ -866,6 +893,19 @@ export class WhatsAppService {
     const state = this.antiBan.get(userId);
     const count = state ? state.timestamps.filter(t => t > Date.now() - 3_600_000).length : 0;
     return { messagesThisHour: count, maxPerHour: MAX_MSGS_PER_HOUR, antiBanActive: true, safeDelayRange: "3s - 6s", typingSimulation: true };
+  }
+
+  // ── Diagnóstico: ver mapeamento LID→número em memória ────────────────────────
+  async getLidCache(userId: string) {
+    const store = this.stores.get(userId);
+    const cache = Object.fromEntries(this.lidToPhone.entries());
+    const storeContacts = store ? Object.keys((store as any)?.contacts || {}).slice(0, 20) : [];
+    return {
+      cacheSize: this.lidToPhone.size,
+      cache,
+      storeContactsSample: storeContacts,
+      sockConnected: this.sockets.has(userId),
+    };
   }
 }
 

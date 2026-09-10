@@ -311,10 +311,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pool = getPool();
       if (!pool) return res.status(500).json({ message: "DB não disponível" });
       const result = await pool.query(
-        `SELECT id, phone_number, name FROM contacts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20`,
+        `SELECT id, phone_number, name, created_at FROM contacts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
         [DEFAULT_USER_ID]
       );
       res.json(result.rows);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
+  });
+
+  // Ver mapeamento LID→número em memória
+  app.get('/api/admin/lid-cache', async (req, res) => {
+    try {
+      const cache = await whatsappService.getLidCache(DEFAULT_USER_ID);
+      res.json(cache);
     } catch (err: any) {
       res.status(500).json({ message: err.message });
     }

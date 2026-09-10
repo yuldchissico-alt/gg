@@ -13,6 +13,12 @@
         sync: false
       - key: NODE_ENV
         value: production
+      - key: WHATSAPP_HEADLESS
+        value: "true"
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/.cache/puppeteer
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: "false"
     disk:
       name: pilotzap-wwebjs-data
       mountPath: /app/auth_info

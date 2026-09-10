@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Sidebar from "@/components/sidebar";
 import WhatsAppConnectionModal from "@/components/whatsapp-connection-modal";
+import { AdminContactsDialog } from "@/components/admin-contacts-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,7 @@ export default function WhatsAppConnection() {
               <h1 className="text-2xl font-semibold" data-testid="text-page-title">Conexão</h1>
               <p className="text-sm text-muted-foreground mt-1">Conecte e verifique sua conexão com o WhatsApp</p>
             </div>
+            <AdminContactsDialog />
           </div>
         </header>
 
