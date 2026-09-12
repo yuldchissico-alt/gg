@@ -5,7 +5,6 @@ server/public
 vite.config.ts.*
 *.tar.gz
 auth_info
-.vercel
 *.log
 .env
 .env.local
@@ -13,3 +12,7 @@ auth_info
 .dyad/
 .wwebjs_cache
 .wwebjs_auth
+
+# Deploy files (copies from .deploy/)
+Dockerfile
+render.yaml

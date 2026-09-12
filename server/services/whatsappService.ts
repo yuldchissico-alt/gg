@@ -33,20 +33,10 @@ interface AntiBanState {
   sendQueue: Promise<void>;
 }
 const MAX_MSGS_PER_HOUR = 80;
-const MIN_DELAY_BETWEEN_MSGS = 3_000; // 3 segundos mínimo
-const MAX_DELAY_BETWEEN_MSGS = 6_000; // 6 segundos máximo
 
 function randomDelay(minMs: number, maxMs: number): Promise<void> {
   const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
   return new Promise((r) => setTimeout(r, ms));
-}
-
-// Limpar mapas de memória periodicamente para evitar memory leak
-function cleanupOldEntries<K, V>(map: Map<K, V>, maxSize: number) {
-  if (map.size > maxSize) {
-    const keysToDelete = Array.from(map.keys()).slice(0, map.size - maxSize);
-    keysToDelete.forEach(k => map.delete(k));
-  }
 }
 
 // ── Tipos públicos ────────────────────────────────────────────────────────────
@@ -95,9 +85,6 @@ export class WhatsAppService {
   private startHeartbeat() {
     if (this.heartbeatTimer) return;
     this.heartbeatTimer = setInterval(async () => {
-      // Limpar mapas de memória para evitar memory leak (manter últimas 100 entradas)
-      cleanupOldEntries(this.lidToPhone, 100);
-      
       for (const [userId, status] of this.connectionStatuses.entries()) {
         if (status.connected && !this.sockets.has(userId)) {
           console.warn(`💓 [HEARTBEAT] Socket ${userId} desapareceu — reconectando...`);
@@ -646,8 +633,8 @@ export class WhatsAppService {
       }
 
       if (state && state.timestamps.length > 0) {
-        // Delay variável e mais longo entre mensagens (10-20s)
-        await randomDelay(MIN_DELAY_BETWEEN_MSGS, MAX_DELAY_BETWEEN_MSGS);
+        const delay = Math.floor(Math.random() * 3000) + 3000;
+        await new Promise(r => setTimeout(r, delay));
       }
 
       // ── RESOLUÇÃO DE LID: Converter LID → número real ANTES de construir JID ────
@@ -729,17 +716,13 @@ export class WhatsAppService {
 
       console.log(`📤 [BAILEYS] Enviando para ${jid}: "${message?.slice(0, 50)}"`);
 
-      // Verificar existência antes de enviar (OBRIGATÓRIO para evitar spam score)
+      // Verificar existência (opcional — não bloquear se falhar)
       try {
         const [result] = await sock.onWhatsApp(jid);
-        if (!result?.exists) {
-          console.error(`❌ [BAILEYS] ${jid} não existe no WhatsApp — ABORTANDO envio`);
-          return false; // NÃO enviar para números inexistentes
+        if (result && !result.exists) {
+          console.warn(`⚠️ [BAILEYS] ${jid} não encontrado no WhatsApp`);
         }
-      } catch (err) {
-        console.warn(`⚠️ [BAILEYS] Não foi possível verificar ${jid} — continuando...`);
-        // Continuar se a verificação falhar (problema de rede, não do número)
-      }
+      } catch { /* ignorar */ }
 
       // Simulação de presença (typing)
       try {

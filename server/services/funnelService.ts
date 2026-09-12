@@ -27,9 +27,6 @@ interface FunnelNodeData {
 }
 
 export class FunnelService {
-  // Mapa para prevenir processamento concorrente do mesmo nó
-  private processingNodes: Map<string, boolean> = new Map();
-  
   async executeFunnel(funnelId: string, contactId: string, triggerMessage?: string, quotedMsg?: any): Promise<void> {
     try {
       const funnel = await storage.getFunnel(funnelId);
@@ -80,30 +77,17 @@ export class FunnelService {
   }
 
   async processNextNode(executionId: string): Promise<void> {
-    // Prevenir processamento concorrente do mesmo nó (race condition)
-    const lockKey = `${executionId}`;
-    if (this.processingNodes.get(lockKey)) {
-      console.warn(`🔒 [FUNNEL] Execução ${executionId} já está sendo processada — ignorando chamada duplicada`);
-      return;
-    }
-    
-    this.processingNodes.set(lockKey, true);
-    
     try {
       const execution = await storage.getFunnelExecution(executionId);
       if (!execution || execution.status !== 'active') {
-        this.processingNodes.delete(lockKey);
         return;
       }
 
-      // Prevenir re-processamento muito rápido do mesmo nó
+      // Prevenir re-processamento rápido do mesmo nó (deve haver pelo menos 1 segundo de diferença)
       const executionData = execution.data as any || {};
       const lastProcessed = executionData.lastNodeProcessedAt ? new Date(executionData.lastNodeProcessedAt).getTime() : 0;
-      if (Date.now() - lastProcessed < 500 && execution.currentNodeId) {
-        console.warn(`⏳ [FUNNEL] Execução ${executionId} processada há menos de 500ms — aguardando`);
-        this.processingNodes.delete(lockKey);
-        return;
-      }
+      // Removido o check de duplicidade para garantir que mensagens sequenciais funcionem
+      // if (Date.now() - lastProcessed < 500 && execution.currentNodeId) { ... }
 
       const funnel = await storage.getFunnel(execution.funnelId);
       if (!funnel) {
@@ -202,15 +186,20 @@ export class FunnelService {
       return; // Stop here, scheduler will call processNextNode later
     }
       
-    // For all other nodes, process next node immediately
-    if (currentNodeType !== 'message' || !flowData.edges.some(e => e.source === currentNode.id)) {
-      setImmediate(() => this.processNextNode(executionId));
-    } else {
-      // Pequeno delay randômico para simular tempo de resposta variado e evitar detecção
-      const humanDelay = 500 + Math.random() * 1000;
+    // For all other nodes (not delay), process next node with a small human-like delay
+    const nextEdge = flowData.edges.find(e => e.source === currentNode.id);
+    if (nextEdge) {
+      const humanDelay = 500 + Math.random() * 1000; // 0.5-1.5 segundos
+      console.log(`⏭️ [FUNNEL] Agendando próximo nó em ${Math.round(humanDelay)}ms`);
       setTimeout(() => this.processNextNode(executionId), humanDelay);
+    } else {
+      console.log(`🏁 [FUNNEL] Fim do funil alcançado (sem próxima edge)`);
+      await storage.updateFunnelExecution(executionId, {
+        status: 'completed',
+        completedAt: new Date(),
+      });
     }
-    } catch (error) {
+  } catch (error) {
       console.error('Process next node error:', error);
       
       // Mark execution as failed
@@ -218,9 +207,6 @@ export class FunnelService {
         status: 'stopped',
         completedAt: new Date(),
       });
-    } finally {
-      // Sempre liberar o lock, mesmo em caso de erro
-      this.processingNodes.delete(lockKey);
     }
   }
 
@@ -292,7 +278,7 @@ export class FunnelService {
         }
       }
 
-      console.log(`📡 [FUNNEL] Iniciando envio para ${contact.phoneNumber}: "${messageContent}"`);
+      console.log(`📡 [FUNNEL] Iniciando envio para ${contact.phoneNumber}: "${messageContent?.substring(0, 50)}..."`);
 
       // Determine message type based on content
       let messageType: 'text' | 'image' | 'video' | 'audio' | 'document' = 'text';
@@ -321,8 +307,11 @@ export class FunnelService {
       );
       
       if (!success) {
+        console.error(`❌ [FUNNEL] Falha no envio para ${contact.phoneNumber}`);
         throw new Error(`Falha no whatsappService.sendMessage para ${contact.phoneNumber}`);
       }
+
+      console.log(`✅ [FUNNEL] Mensagem enviada com sucesso para ${contact.phoneNumber}`);
 
       // Store message record
       await storage.createMessage({

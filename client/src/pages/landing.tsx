@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, BarChart3, Users, Smartphone, Shield, MessageSquare } from "lucide-react";
-import logoHeader from "@assets/IMG-20260102-WA0063__1_-removebg-preview_1767392224479.png";
+import logoHeader from "@/assets/logo-dashboard-old.png";
 
 export default function Landing() {
   return (

@@ -1,110 +1,228 @@
-# ZapFast - WhatsApp Automation Platform
+# 🚀 PilotZap
 
-A powerful WhatsApp automation platform built with React, Express, and Drizzle ORM.
+**Automação Profissional para WhatsApp**
 
-## Features
+Sistema completo de automação de marketing via WhatsApp com funis inteligentes, campanhas automatizadas e gestão de contactos.
 
-- 🤖 WhatsApp automation using whatsapp-web.js
-- 📊 Sales funnels and campaign management
-- 💬 Automated messaging and responses
-- 📈 Analytics and reporting
-- 🎨 Modern React UI with Tailwind CSS
+---
 
-## Local Development
+## ✨ Funcionalidades
 
-### Prerequisites
+### 🤖 Automação
+- ✅ Funis de conversação personalizáveis (drag & drop)
+- ✅ Respostas automáticas baseadas em gatilhos
+- ✅ Campanhas programadas
+- ✅ Templates de mensagens reutilizáveis
 
-- Node.js 22+
-- pnpm
-- PostgreSQL (for database)
+### 📊 Gestão
+- ✅ Gestão completa de contactos
+- ✅ Tags e segmentação
+- ✅ Analytics e relatórios
+- ✅ Histórico de conversas
 
-### Installation
+### 💬 WhatsApp
+- ✅ Conexão via Baileys (sem Puppeteer)
+- ✅ Multi-device suportado
+- ✅ Envio de texto, imagens, vídeos e documentos
+- ✅ Sessão persistente (mantém conexão após deploys)
 
-1. Clone the repository:
+---
+
+## 🛠️ Stack Tecnológica
+
+### Frontend
+- **React 18** + **TypeScript**
+- **Vite** (build tool)
+- **Tailwind CSS** + **shadcn/ui**
+- **React Query** (data fetching)
+- **ReactFlow** (editor visual de funis)
+
+### Backend
+- **Node.js** + **Express**
+- **TypeScript**
+- **PostgreSQL** + **Drizzle ORM**
+- **Baileys** (WhatsApp Web API)
+- **node-cron** (agendamento)
+
+---
+
+## 📋 Pré-requisitos
+
+- **Node.js** 20+
+- **PostgreSQL** 14+
+- **npm** ou **pnpm**
+
+---
+
+## 🚀 Início Rápido
+
+### 1. Clonar o repositório
 ```bash
-git clone https://github.com/yuld52/gggggggggggggggggggggggggggggg.git
-cd gggggggggggggggggggggggggggggg
+git clone <seu-repo>
+cd pilotzap
 ```
 
-2. Install dependencies:
+### 2. Instalar dependências
 ```bash
-pnpm install
+npm install
 ```
 
-3. Set up environment variables:
+### 3. Configurar ambiente
 ```bash
 cp .env.example .env
-# Edit .env with your database URL and other configuration
 ```
 
-4. Run development server:
+Edite `.env` e adicione:
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/pilotzap
+NODE_ENV=development
+PORT=5000
+```
+
+### 4. Configurar banco de dados
 ```bash
-pnpm run dev
+npm run db:push
 ```
 
-The application will be available at `http://localhost:5000`
-
-## Deployment on Render
-
-### Prerequisites
-
-- Render account
-- PostgreSQL database (Render Database or external)
-- GitHub repository connected to Render
-
-### Steps
-
-1. Create a new Web Service on Render
-2. Connect your GitHub repository
-3. Add the following environment variables in Render Dashboard:
-
-```
-DATABASE_URL=your_postgresql_connection_string
-NODE_ENV=production
-```
-
-4. Render will automatically detect and use `render.yaml` for build configuration
-
-5. The service will be deployed at: `https://your-service-name.onrender.com`
-
-### Required Environment Variables
-
-- `DATABASE_URL` - PostgreSQL connection string
-- `NODE_ENV` - Set to `production` for production deployments
-- `PORT` - Automatically set by Render (default: 3000)
-
-## Build & Production
-
-### Build for production:
+### 5. Iniciar em desenvolvimento
 ```bash
-pnpm run build
+npm run dev
 ```
 
-### Start production server:
-```bash
-pnpm run start
-```
+Acesse: http://localhost:5000
 
-## Project Structure
+---
 
-```
-.
-├── client/          # React frontend
-├── server/          # Express backend
-├── shared/          # Shared types and utilities
-├── api/             # API routes
-├── auth_info/       # WhatsApp authentication data
-└── public/          # Static assets
-```
-
-## Database
-
-Uses Drizzle ORM with PostgreSQL. Run migrations:
+## 📦 Build para Produção
 
 ```bash
-pnpm run db:push
+# Build frontend + backend
+npm run build
+
+# Iniciar em produção
+npm start
 ```
 
-## License
+---
+
+## 🐳 Deploy com Docker
+
+```bash
+# Build da imagem
+docker build -t pilotzap -f .deploy/Dockerfile .
+
+# Executar container
+docker run -p 10000:10000 \
+  -e DATABASE_URL="postgresql://..." \
+  -e NODE_ENV=production \
+  -v $(pwd)/auth_info:/app/auth_info \
+  pilotzap
+```
+
+---
+
+## ☁️ Deploy no Render
+
+1. **Criar novo Web Service** no [Render](https://render.com)
+2. **Conectar repositório Git**
+3. **Configurar**:
+   - Build Command: `npm ci && npm run build`
+   - Start Command: `node dist/index.js`
+4. **Adicionar variáveis de ambiente**:
+   - `DATABASE_URL` - String de conexão PostgreSQL
+   - `NODE_ENV` - `production`
+5. **Adicionar Disco Persistente**:
+   - Name: `pilotzap-auth-data`
+   - Mount Path: `/app/auth_info`
+   - Size: `1 GB`
+
+📖 **Guia detalhado**: [docs/RENDER_DISK_SETUP.md](./docs/RENDER_DISK_SETUP.md)
+
+---
+
+## 📁 Estrutura do Projeto
+
+```
+pilotzap/
+├── client/          # Frontend React
+├── server/          # Backend Express
+├── shared/          # Código compartilhado (tipos, schemas)
+├── docs/            # Documentação
+├── .deploy/         # Arquivos de deploy
+└── public/          # Assets públicos
+```
+
+📖 **Documentação completa**: [docs/PROJECT_STRUCTURE.md](./docs/PROJECT_STRUCTURE.md)
+
+---
+
+## 🔐 Segurança
+
+- ✅ Autenticação por sessão
+- ✅ Credenciais WhatsApp nunca commitadas
+- ✅ Variáveis de ambiente para secrets
+- ✅ Sessões criptografadas
+
+---
+
+## 📚 Documentação
+
+- 📖 [Estrutura do Projeto](./docs/PROJECT_STRUCTURE.md)
+- 🔧 [Setup de Disco no Render](./docs/RENDER_DISK_SETUP.md)
+- 📱 [Conexão WhatsApp](./docs/WHATSAPP_CONNECTION.md)
+- 🤖 [Regras para IA](./docs/AI_RULES.md)
+
+---
+
+## 🧪 Scripts Disponíveis
+
+```bash
+npm run dev      # Desenvolvimento (frontend + backend)
+npm run build    # Build produção
+npm start        # Iniciar produção
+npm run check    # Type checking
+npm run db:push  # Atualizar schema do banco
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### WhatsApp desconecta após deploy
+**Solução**: Configurar disco persistente no Render  
+📖 [docs/RENDER_DISK_SETUP.md](./docs/RENDER_DISK_SETUP.md)
+
+### Erro de conexão com banco
+**Verificar**: `DATABASE_URL` no `.env` está correto
+
+### Erro ao escanear QR Code
+**Solução**: Verificar logs do servidor para detalhes  
+📖 [docs/WHATSAPP_CONNECTION.md](./docs/WHATSAPP_CONNECTION.md)
+
+---
+
+## 📄 Licença
 
 MIT
+
+---
+
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Por favor:
+
+1. Fork o projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/MinhaFeature`)
+3. Commit suas mudanças (`git commit -m 'feat: Adiciona MinhaFeature'`)
+4. Push para a branch (`git push origin feature/MinhaFeature`)
+5. Abra um Pull Request
+
+---
+
+## 📞 Suporte
+
+Para dúvidas ou suporte, consulte a documentação em `docs/` ou abra uma issue no repositório.
+
+---
+
+**Feito com ❤️ para automação profissional de WhatsApp**

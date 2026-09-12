@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useSettings } from "@/contexts/SettingsContext";
 import { useState } from "react";
-import logoDashboard from "@assets/logo-dashboard-old.png";
+import logoDashboard from "@/assets/logo-dashboard-old.png";
 import whatsappIcon from "@/assets/whatsapp-icon.png";
 import { IoLogoWhatsapp } from "react-icons/io";
 import {

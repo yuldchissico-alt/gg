@@ -60,14 +60,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         configured: hasDbUrl,
         status: dbStatus,
         error: dbError,
-        // NÃO expor hostname ou connection string por segurança
+        host: hasDbUrl ? (process.env.DATABASE_URL!.split("@")[1]?.split("/")[0] || "configured") : "missing",
       },
-      whatsapp: {
-        connected: wsStatus.connected,
-        status: wsStatus.status,
-        // NÃO expor phoneNumber por privacidade
-      },
-      timestamp: new Date().toISOString(),
+      whatsapp: wsStatus,
+      platform: process.platform,
     });
   });
 
@@ -933,13 +929,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = DEFAULT_USER_ID;
       const { contactId, phoneNumber, content, type, mediaUrl, scheduledAt, directSend } = req.body;
-
-      // Validar phoneNumber se fornecido (apenas números, +, e espaços permitidos)
-      if (phoneNumber && !/^[\d\s+()-]+$/.test(phoneNumber)) {
-        return res.status(400).json({ 
-          message: "Número de telefone inválido. Apenas números, +, espaços, () e - são permitidos." 
-        });
-      }
 
       const limitCheck = await storage.checkMessageLimit(userId);
       if (!limitCheck.allowed) {

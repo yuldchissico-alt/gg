@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Rocket } from "lucide-react";
 import { useLocation } from "wouter";
-import logoHeader from "@assets/logo-dashboard-old.png";
+import logoHeader from "@/assets/logo-dashboard-old.png";
 import { queryClient } from "@/lib/queryClient";
 
 export default function Login() {

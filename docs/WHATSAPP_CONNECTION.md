@@ -5,7 +5,7 @@
 - O projeto usa `whatsapp-web.js` (WhatsApp Web via navegador/Puppeteer).
 - Você precisa ter **Chrome/Chromium** disponível na máquina onde o servidor roda.
 
-## Observação sobre Cloud (Replit/VPS/Datacenter)
+## Observação sobre Cloud (VPS/Datacenter)
 
 Dependendo do IP/ambiente, o WhatsApp pode limitar/bloquear automações. Para desenvolvimento, o caminho mais estável é rodar **localmente** (IP residencial).
 

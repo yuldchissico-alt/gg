@@ -4,7 +4,7 @@
     env: node
     plan: starter
     region: frankfurt
-    buildCommand: pnpm install && pnpm run build
+    buildCommand: npm ci && npm run build
     startCommand: node dist/index.js
     autoDeploy: true
     healthCheckPath: /api/health
@@ -13,13 +13,7 @@
         sync: false
       - key: NODE_ENV
         value: production
-      - key: WHATSAPP_HEADLESS
-        value: "true"
-      - key: PUPPETEER_CACHE_DIR
-        value: /opt/render/.cache/puppeteer
-      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
-        value: "false"
     disk:
-      name: pilotzap-wwebjs-data
+      name: pilotzap-auth-data
       mountPath: /app/auth_info
       sizeGB: 1

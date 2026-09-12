@@ -3,3 +3,5 @@
 .env
 dist
 auth_info
+*.log
+.npmrc
